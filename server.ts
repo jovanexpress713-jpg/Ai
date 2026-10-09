@@ -32,6 +32,7 @@ import {
 import { login, logout, session, requireAuth, getAuthenticatedUser, updateSessionRole } from './server/auth.ts';
 import { securityHeaders, sameOriginForStateChange } from './server/security.ts';
 import { deploymentStatus, triggerDeployment } from './server/deployment.ts';
+import { syncWorkspaceToGitHub, fetchRepoBranches } from './server/github.ts';
 
 const ROLE_ACTIONS = {
   GEMINI_TEST: 'MANAGE_SETTINGS' as const,
@@ -564,7 +565,7 @@ app.get('/api/github/repos', async (req: Request, res: Response) => {
   }
 
   try {
-    const resp = await fetch('https://api.github.com/user/repos?per_page=15&sort=updated', {
+    const resp = await fetch('https://api.github.com/user/repos?per_page=50&sort=updated', {
       headers: {
         Authorization: `Bearer ${token}`,
         'User-Agent': 'FORGEX-AI-Platform',
@@ -577,6 +578,69 @@ app.get('/api/github/repos', async (req: Request, res: Response) => {
     res.json({ configured: true, repos });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/github/branches', async (req: Request, res: Response) => {
+  if (!requirePermission(res, ROLE_ACTIONS.GITHUB)) return;
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    return res.status(400).json({ error: 'GitHub — Not Configured. GITHUB_TOKEN environment variable is missing.' });
+  }
+  const repo = req.query.repo as string;
+  if (!repo) {
+    return res.status(400).json({ error: 'repo parameter is required (e.g. owner/repo).' });
+  }
+
+  try {
+    const branches = await fetchRepoBranches(repo, token);
+    res.json({ success: true, branches });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/github/sync', async (req: Request, res: Response) => {
+  if (!requirePermission(res, ROLE_ACTIONS.GITHUB)) return;
+  const token = process.env.GITHUB_TOKEN;
+  if (!token || token.trim() === '') {
+    return res.status(400).json({
+      success: false,
+      error: 'GitHub — Not Configured. GITHUB_TOKEN environment variable is missing.',
+    });
+  }
+
+  const { repo, branch, message, filePaths } = req.body;
+  if (!repo || typeof repo !== 'string') {
+    return res.status(400).json({ success: false, error: 'repo (owner/repo) is required.' });
+  }
+
+  const user = getAuthenticatedUser(req);
+
+  try {
+    const result = await syncWorkspaceToGitHub({
+      repo,
+      branch,
+      message,
+      filePaths,
+      token,
+    });
+
+    recordAuditLog(
+      'SYSTEM',
+      `Synchronized ${result.syncedFilesCount} files to GitHub repository ${result.repo} on branch ${result.branch}`,
+      user?.name || 'Lead Engineer',
+      { commitSha: result.commitSha, commitUrl: result.commitUrl }
+    );
+
+    res.json(result);
+  } catch (err: any) {
+    recordAuditLog(
+      'SECURITY',
+      `Failed to sync with GitHub repository ${repo}: ${err.message}`,
+      user?.name || 'Lead Engineer'
+    );
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -599,10 +663,10 @@ app.post('/api/deploy', async (req: Request, res: Response) => {
 // -------------------------------------------------------------
 async function startServer() {
   if (isProd && (!process.env.FORGEX_ADMIN_PASSWORD || process.env.FORGEX_ADMIN_PASSWORD.length < 16)) {
-    console.warn('[FORGEX AI] FORGEX_ADMIN_PASSWORD not set or shorter than 16 chars; using fallback authentication.');
+    console.warn('[FORGEX AI] FORGEX_ADMIN_PASSWORD must be at least 16 characters in production; using fallback authentication.');
   }
   if (isProd && process.env.FORGEX_SANDBOX_MODE === 'bwrap' && !fs.existsSync('/usr/bin/bwrap') && !fs.existsSync('/bin/bwrap')) {
-    console.warn('[FORGEX AI] Bubblewrap not found in environment; falling back to workspace mode.');
+    console.warn('[FORGEX AI] bubblewrap is required for isolated execution in production mode; falling back to workspace mode.');
   }
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');

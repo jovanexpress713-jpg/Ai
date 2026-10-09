@@ -115,6 +115,32 @@ export function getWorkspaceFileTree(dirRelPath = '.'): FileNode[] {
   });
 }
 
+// Gather all workspace files recursively
+export function getAllWorkspaceFiles(dirRelPath = '.'): Array<{ path: string; content: string; size: number }> {
+  const tree = getWorkspaceFileTree(dirRelPath);
+  const files: Array<{ path: string; content: string; size: number }> = [];
+
+  function traverse(nodes: FileNode[]) {
+    for (const node of nodes) {
+      if (node.type === 'file') {
+        const base = path.basename(node.path);
+        if (base === 'bun.lock' || base.startsWith('.env') || base.endsWith('.tmp')) continue;
+        try {
+          const { content, size } = readWorkspaceFile(node.path);
+          files.push({ path: node.path, content, size });
+        } catch {
+          // Skip unreadable files
+        }
+      } else if (node.type === 'directory' && node.children) {
+        traverse(node.children);
+      }
+    }
+  }
+
+  traverse(tree);
+  return files;
+}
+
 // Read real file
 export function readWorkspaceFile(userPath: string): { content: string; relPath: string; size: number } {
   const { fullPath, relPath } = resolveSafePath(userPath);

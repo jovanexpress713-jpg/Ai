@@ -13,7 +13,9 @@ export const translations = {
     recentProjects: 'مشاريع مساحة العمل',
     noTasksYet: 'لا توجد مهام سابقة حتى الآن. ابدأ بكتابة طلبك أعلاه.',
     viewWorkspace: 'مساحة العمل (IDE)',
-    backToHome: 'الرئيسية',
+    backToHome: 'مركز القيادة',
+    studioView: 'الاستوديو الذكي',
+    commandCenter: 'مركز القيادة',
     healthStatus: 'حالة الخدمات والتكاملات',
     roles: {
       Owner: 'مالك النظام (Owner)',
@@ -102,8 +104,10 @@ export const translations = {
     recentTasks: 'Recent Tasks & History',
     recentProjects: 'Workspace Projects',
     noTasksYet: 'No previous tasks recorded yet. Start by typing your request above.',
-    viewWorkspace: 'Workspace Studio',
-    backToHome: 'Overview',
+    viewWorkspace: 'Workspace (IDE)',
+    backToHome: 'Command Center',
+    studioView: 'Studio Canvas',
+    commandCenter: 'Command Center',
     healthStatus: 'Integration & Service Health',
     roles: {
       Owner: 'Owner',

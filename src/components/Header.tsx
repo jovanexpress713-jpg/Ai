@@ -15,8 +15,8 @@ import { SystemHealthData, UserRole } from '../types';
 import { translations, Language } from '../lib/i18n';
 
 interface HeaderProps {
-  currentView: 'home' | 'workspace';
-  onViewChange: (view: 'home' | 'workspace') => void;
+  currentView: 'studio' | 'home' | 'workspace';
+  onViewChange: (view: 'studio' | 'home' | 'workspace') => void;
   health: SystemHealthData | null;
   currentRole: UserRole;
   onRoleChange: (role: UserRole) => void;
@@ -42,10 +42,10 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Brand & Mode switch */}
       <div className="flex items-center gap-3">
         <div
-          onClick={() => onViewChange('home')}
+          onClick={() => onViewChange('studio')}
           className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center font-bold text-white shadow-md shadow-cyan-900/40">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-cyan-900/40">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div className="flex flex-col">
@@ -61,20 +61,31 @@ export const Header: React.FC<HeaderProps> = ({
         {/* View Toggle Tabs */}
         <div className="hidden sm:flex items-center bg-[#0d1117] p-1 rounded-lg border border-[#30363d] ms-4">
           <button
-            onClick={() => onViewChange('home')}
-            className={`px-3 py-1 rounded text-xs font-medium transition-all ${
-              currentView === 'home'
-                ? 'bg-[#21262d] text-white shadow-sm'
+            onClick={() => onViewChange('studio')}
+            className={`px-3 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-all ${
+              currentView === 'studio'
+                ? 'bg-[#21262d] text-indigo-400 shadow-sm font-semibold'
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
-            {t.backToHome}
+            <Sparkles className="w-3.5 h-3.5" />
+            {t.studioView}
+          </button>
+          <button
+            onClick={() => onViewChange('home')}
+            className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+              currentView === 'home'
+                ? 'bg-[#21262d] text-white shadow-sm font-semibold'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            {t.commandCenter}
           </button>
           <button
             onClick={() => onViewChange('workspace')}
             className={`px-3 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-all ${
               currentView === 'workspace'
-                ? 'bg-[#21262d] text-cyan-400 shadow-sm'
+                ? 'bg-[#21262d] text-cyan-400 shadow-sm font-semibold'
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >

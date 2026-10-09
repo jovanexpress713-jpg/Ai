@@ -76,6 +76,8 @@ export async function applyTask(taskId: string): Promise<AgentTask> {
   return data.task;
 }
 
+export const applyTaskChanges = applyTask;
+
 export async function rejectTask(taskId: string): Promise<AgentTask> {
   const res = await fetch(`/api/agent/task/${taskId}/reject`, { method: 'POST' });
   const data = await res.json();
@@ -84,6 +86,8 @@ export async function rejectTask(taskId: string): Promise<AgentTask> {
   }
   return data.task;
 }
+
+export const rejectTaskChanges = rejectTask;
 
 export async function fetchFileTree(): Promise<FileNode[]> {
   const res = await fetch('/api/fs/tree');
@@ -230,3 +234,62 @@ export async function fetchGitHubStatus(): Promise<{
   const res = await fetch('/api/github/status');
   return res.json();
 }
+
+export async function fetchGitHubRepos(): Promise<{
+  configured: boolean;
+  repos?: Array<{
+    id: number;
+    name: string;
+    full_name: string;
+    description: string | null;
+    html_url: string;
+    default_branch: string;
+    updated_at: string;
+    private: boolean;
+  }>;
+  error?: string;
+}> {
+  const res = await fetch('/api/github/repos');
+  return res.json();
+}
+
+export async function fetchGitHubBranches(repo: string): Promise<{
+  success: boolean;
+  branches?: Array<{ name: string; commit: { sha: string } }>;
+  error?: string;
+}> {
+  const res = await fetch(`/api/github/branches?repo=${encodeURIComponent(repo)}`);
+  return res.json();
+}
+
+export interface SyncGitHubParams {
+  repo: string;
+  branch?: string;
+  message?: string;
+  filePaths?: string[];
+}
+
+export interface SyncGitHubResult {
+  success: boolean;
+  commitSha: string;
+  commitUrl: string;
+  branch: string;
+  repo: string;
+  syncedFilesCount: number;
+  files: string[];
+  timestamp: string;
+}
+
+export async function syncWithGitHub(params: SyncGitHubParams): Promise<SyncGitHubResult> {
+  const res = await fetch('/api/github/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || 'Failed to sync with GitHub repository');
+  }
+  return data;
+}
+
