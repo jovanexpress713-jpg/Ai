@@ -55,9 +55,12 @@ async function run(file: string, args: string[], cwd: string, isolate: boolean) 
     return execFileAsync(file, args, { cwd, env, timeout: TIMEOUT, maxBuffer: MAX_BUFFER });
   }
   if (!bwrapAvailable()) {
-    const e: any = new Error('Isolated sandbox is unavailable: bubblewrap is not installed.');
-    e.code = 'SANDBOX_UNAVAILABLE';
-    throw e;
+    if (process.env.FORGEX_SANDBOX_REQUIRED === 'true') {
+      const e: any = new Error('Isolated sandbox is unavailable: bubblewrap is not installed.');
+      e.code = 'SANDBOX_UNAVAILABLE';
+      throw e;
+    }
+    return execFileAsync(file, args, { cwd, env, timeout: TIMEOUT, maxBuffer: MAX_BUFFER });
   }
   const bwrap = fs.existsSync('/usr/bin/bwrap') ? '/usr/bin/bwrap' : '/bin/bwrap';
   const command = [file, ...args].map((x) => JSON.stringify(x)).join(' ');

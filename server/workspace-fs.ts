@@ -153,6 +153,9 @@ export function writeWorkspaceFile(userPath: string, newContent: string): { succ
   return { success: true, relPath };
 }
 
+export const updateWorkspaceFile = writeWorkspaceFile;
+export const getWorkspaceFile = readWorkspaceFile;
+
 // Create new file or folder
 export function createWorkspaceItem(userPath: string, isDirectory = false, initialContent = ''): { success: boolean; relPath: string } {
   const { fullPath, relPath } = resolveSafePath(userPath);

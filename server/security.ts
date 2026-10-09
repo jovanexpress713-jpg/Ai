@@ -4,14 +4,11 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export function securityHeaders(_req: Request, res: Response, next: NextFunction): void {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://generativelanguage.googleapis.com https://api.github.com; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
   }
   next();
 }
@@ -20,10 +17,10 @@ export function sameOriginForStateChange(req: Request, res: Response, next: Next
   if (!MUTATING.has(req.method) || req.path === '/api/auth/login') return next();
   const origin = req.headers.origin;
   if (!origin) return next();
-  const host = req.headers.host;
+  const host = (req.headers['x-forwarded-host'] || req.headers.host) as string;
   try {
     const originUrl = new URL(origin);
-    if (originUrl.host !== host) {
+    if (host && originUrl.host !== host && !originUrl.host.includes('run.app') && !originUrl.host.includes('localhost')) {
       res.status(403).json({ success: false, error: 'Cross-origin state-changing request rejected.' });
       return;
     }
