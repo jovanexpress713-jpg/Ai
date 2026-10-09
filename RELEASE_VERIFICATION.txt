@@ -1,0 +1,20 @@
+FORGEX AI RELEASE VERIFICATION
+Date: 2026-10-08
+
+PASS: scripts/security-tests.mjs
+PASS: scripts/verify-workspace.mjs
+PASS: TypeScript/TSX syntax transpilation (26 files)
+PASS: Docker socket exposure scan
+PASS: CI lockfile dependency policy
+PASS: RBAC route policy checks
+PASS: Sandbox policy checks
+PASS: Autonomous pre-apply verification policy
+PASS: Atomic database write policy
+PASS: Protected infrastructure file policy
+
+Runtime dependencies not present in audit host:
+- Docker executable: unavailable
+- Bubblewrap executable: unavailable
+- npm dependency installation: external registry operation unavailable/timed out
+
+The release does not claim runtime tests that could not be executed.

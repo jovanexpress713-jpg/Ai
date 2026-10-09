@@ -1,0 +1,28 @@
+services:
+  forgex:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      FORGEX_SANDBOX_MODE: bwrap
+      FORGEX_SANDBOX_REQUIRED: "true"
+      FORGEX_WORKSPACE_ROOT: /workspace
+    ports:
+      - "3000:3000"
+    volumes:
+      - forgex-data:/app/data
+      - forgex-workspace:/workspace
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    pids_limit: 256
+    mem_limit: 1g
+
+volumes:
+  forgex-data:
+  forgex-workspace:

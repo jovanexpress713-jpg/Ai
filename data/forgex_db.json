@@ -1,0 +1,109 @@
+{
+  "version": "1.0.0",
+  "currentUser": {
+    "id": "usr_owner_1",
+    "name": "Lead Engineer",
+    "email": "hhhertwg@gmail.com",
+    "role": "Owner"
+  },
+  "projects": [
+    {
+      "id": "proj_current",
+      "name": "FORGEX AI Workspace",
+      "description": "Active workspace environment for FORGEX AI autonomous engineering platform",
+      "path": ".",
+      "createdAt": "2026-10-08T10:30:00.000Z",
+      "updatedAt": "2026-10-08T10:30:00.000Z",
+      "isCurrent": true
+    }
+  ],
+  "tasks": [
+    {
+      "title": "Add a helpful comment to metadata.json",
+      "description": "Add a helpful comment to metadata.json",
+      "assignedAgent": "Planner",
+      "requestedBy": "Lead Engineer",
+      "state": "CANCELLED",
+      "steps": [
+        {
+          "title": "User Rejected Changes",
+          "state": "CANCELLED",
+          "agent": "User",
+          "detail": "User declined to apply proposed diffs.",
+          "timestamp": "2026-10-08T17:47:02.474Z"
+        }
+      ],
+      "proposedChanges": [
+        {
+          "filePath": "metadata.json",
+          "originalContent": "{\n  \"name\": \"FORGEX AI — Autonomous Engineering Platform\",\n  \"description\": \"Production autonomous AI engineering platform with real file execution, verification, agent planning, and terminal sandbox.\",\n  \"requestFramePermissions\": [],\n  \"majorCapabilities\": [\"MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API\"]\n}\n",
+          "newContent": "{\n  \"description\": \"Project workspace configuration and system metadata for FORGEX AI.\",\n  \"version\": \"1.0.0\",\n  \"status\": \"ACTIVE\"\n}",
+          "diffSummary": {
+            "additions": 3,
+            "deletions": 5,
+            "changes": 8
+          },
+          "applied": false
+        }
+      ],
+      "id": "task_1791481620951_qaah",
+      "createdAt": "2026-10-08T17:47:00.951Z",
+      "updatedAt": "2026-10-08T17:47:02.474Z"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "conv_main",
+      "projectId": "proj_current",
+      "title": "FORGEX Autonomous Session",
+      "createdAt": "2026-10-08T10:30:00.000Z",
+      "messages": [
+        {
+          "id": "msg_sys_init",
+          "role": "assistant",
+          "agent": "Planner",
+          "content": "نظام FORGEX AI جاهز للعمل. تم فحص مساحة العمل وربط محرك الذكاء الاصطناعي مع Gemini ونظام الملفات الحقيقي وقاعدة البيانات المستمرة.",
+          "timestamp": "2026-10-08T10:30:00.000Z"
+        },
+        {
+          "role": "user",
+          "content": "Acceptance test conversation persistence",
+          "id": "msg_1791481622442_dvl",
+          "timestamp": "2026-10-08T17:47:02.442Z"
+        }
+      ]
+    }
+  ],
+  "terminalHistory": [],
+  "fileBackups": {},
+  "auditLogs": [
+    {
+      "id": "log_1791481623294_4v0",
+      "timestamp": "2026-10-08T17:47:03.294Z",
+      "type": "SECURITY",
+      "message": "Dangerous command blocked: rm -rf /",
+      "user": "Lead Engineer"
+    },
+    {
+      "id": "log_1791481622474_bhx",
+      "timestamp": "2026-10-08T17:47:02.474Z",
+      "type": "AGENT",
+      "message": "User rejected changes for task task_1791481620951_qaah",
+      "user": "System"
+    },
+    {
+      "id": "log_1791481622433_e58",
+      "timestamp": "2026-10-08T17:47:02.434Z",
+      "type": "AGENT",
+      "message": "Task task_1791481620951_qaah generated 1 proposed changes",
+      "user": "Lead Engineer"
+    },
+    {
+      "id": "log_init",
+      "timestamp": "2026-10-08T10:30:00.000Z",
+      "type": "SYSTEM",
+      "message": "Database initialized with persistent JSON storage.",
+      "user": "Lead Engineer"
+    }
+  ]
+}

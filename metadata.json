@@ -1,0 +1,6 @@
+{
+  "name": "FORGEX AI — Autonomous Engineering Platform",
+  "description": "Production autonomous AI engineering platform with real file execution, verification, agent planning, and terminal sandbox.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
