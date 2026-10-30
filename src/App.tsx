@@ -429,9 +429,9 @@ export default function AppRender() {
       <div className="flex-1 flex overflow-hidden">
         {/* VIEW 1: STUDIO CANVAS */}
         {currentView === 'studio' && (
-          <div className="flex-1 flex overflow-hidden">
+          <div className="forge-studio-shell flex-1 flex overflow-hidden">
             {/* AI Studio Chat Panel */}
-            <div className="w-1/2 flex flex-col border-l border-slate-800 bg-slate-900/60 backdrop-blur-md">
+            <div className="forge-studio-chat w-1/2 flex flex-col border-l border-slate-800 bg-slate-900/60 backdrop-blur-md">
               <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-indigo-600/20 rounded-xl text-indigo-400 border border-indigo-500/30 shadow-inner">
@@ -630,7 +630,7 @@ export default function AppRender() {
             </div>
 
             {/* Live Canvas Viewport */}
-            <div className="w-1/2 flex flex-col bg-slate-950">
+            <div className="forge-studio-preview w-1/2 flex flex-col bg-slate-950">
               <div className="h-14 border-b border-slate-800 bg-slate-900 px-4 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
                   <button
