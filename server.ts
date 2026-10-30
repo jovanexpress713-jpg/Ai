@@ -10,8 +10,9 @@ import { listProviderConfigs } from './server/ai/config.ts';
 import { testProviderConnection } from './server/ai/providers/index.ts';
 import { PROVIDER_IDS, type ProviderId } from './server/ai/types.ts';
 import { detectProject } from './server/lab/project-detect.ts';
-import { inspectProject } from './server/lab/orchestrator.ts';
+import { executeProject, inspectProject } from './server/lab/orchestrator.ts';
 import { loadLabRuns, saveLabRun } from './server/lab/store.ts';
+import type { LabExecutableCheck } from './server/lab/types.ts';
 import { login, logout, session, requireAuth, getAuthenticatedUser } from './server/auth.ts';
 import { isProductionAuthConfigured } from './server/auth-policy.ts';
 import { registerWorkspaceAndIntegrationRoutes } from './server/legacy-routes.ts';
@@ -161,6 +162,24 @@ app.post('/api/lab/inspect', (_req: Request, res: Response) => {
     res.json({ success: true, run });
   } catch (error: any) {
     res.status(422).json({ success: false, error: error?.message || 'Project inspection failed.' });
+  }
+});
+
+app.post('/api/lab/run', async (req: Request, res: Response) => {
+  if (!requirePermission(res, 'READ_FILE')) return;
+  const requested = req.body?.checks;
+  if (!Array.isArray(requested) || requested.length === 0 || requested.some((item) => item !== 'build' && item !== 'test')) {
+    return res.status(400).json({ success: false, error: 'checks must be a non-empty array containing only build and/or test.' });
+  }
+  const checks = [...new Set(requested)] as LabExecutableCheck[];
+  const root = process.env.FORGEX_WORKSPACE_ROOT || process.cwd();
+  try {
+    const run = await executeProject(root, checks);
+    saveLabRun(run);
+    const failed = run.execution?.results.some((result) => result.status === 'FAILED' || result.status === 'TIMEOUT') ?? false;
+    res.status(failed ? 422 : 200).json({ success: !failed, run });
+  } catch (error: any) {
+    res.status(422).json({ success: false, error: error?.message || 'Project execution failed.' });
   }
 });
 
