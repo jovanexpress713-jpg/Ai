@@ -1,6 +1,8 @@
 # FORGEX AI Provider Routing Foundation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+**Implementation status:** Complete on `feat/provider-routing-foundation`. CI evidence: provider-routing build/test/smoke/Docker run 51 passed; task-preference and project-lab UI contract suite is being re-verified on the latest branch head.
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add direct Gemini, Claude, OpenAI, OpenRouter, and Ollama provider adapters plus a cost-aware router, then route FORGEX autonomous engineering tasks through it.
 
@@ -43,10 +45,10 @@
 - `getProviderConfig(env, providerId)` returns enabled/configured metadata without exposing secrets.
 - `getProviderStatus(providerId)` initially reports configuration state only; it does not claim a live connection.
 
-- [ ] Write tests for missing, blank, placeholder, and configured credentials; assert no returned field contains a secret.
-- [ ] Run `npx tsx scripts/provider-config-tests.ts` and confirm the tests fail because the module is absent.
-- [ ] Implement typed contracts and environment parsing for all five providers.
-- [ ] Run the focused test and confirm PASS.
+- [x] Write tests for missing, blank, placeholder, and configured credentials; assert no returned field contains a secret.
+- [x] Run `npx tsx scripts/provider-config-tests.ts` and confirm the tests fail because the module is absent.
+- [x] Implement typed contracts and environment parsing for all five providers.
+- [x] Run the focused test and confirm PASS.
 
 ### Task 2: Provider adapters and normalization
 
@@ -62,11 +64,11 @@
 - `testProviderConnection(providerId, dependencies?)` performs a bounded ping and returns sanitized status.
 - Inject `fetch` for HTTP adapter tests; use a narrow Gemini client factory seam for SDK tests.
 
-- [ ] Write tests for Anthropic Messages payload/response parsing, OpenAI-compatible chat payload/response parsing, HTTP error normalization, malformed response rejection, and timeout.
-- [ ] Run focused tests and confirm expected failures.
-- [ ] Implement Anthropic, OpenAI, OpenRouter, and Ollama adapters using documented HTTP contracts; use the existing Gemini SDK for Gemini.
-- [ ] Ensure request timeout, response-size limits, and sanitized error handling.
-- [ ] Run focused tests and confirm PASS.
+- [x] Write tests for Anthropic Messages payload/response parsing, OpenAI-compatible chat payload/response parsing, HTTP error normalization, malformed response rejection, and timeout.
+- [x] Run focused tests and confirm expected failures.
+- [x] Implement Anthropic, OpenAI, OpenRouter, and Ollama adapters using documented HTTP contracts; use the existing Gemini SDK for Gemini.
+- [x] Ensure request timeout, response-size limits, and sanitized error handling.
+- [x] Run focused tests and confirm PASS.
 
 ### Task 3: Deterministic model router
 
@@ -80,10 +82,10 @@
 - Explicit provider/model override wins only when configured and valid.
 - Default low-cost policy uses configured preferred provider/model and never fans out.
 
-- [ ] Write tests for preferred-provider selection, explicit override, missing-provider behavior, auth-error no-fallback, transient fallback, and bounded attempts.
-- [ ] Run focused tests and confirm expected failures.
-- [ ] Implement deterministic routing and sanitized route results.
-- [ ] Run focused tests and confirm PASS.
+- [x] Write tests for preferred-provider selection, explicit override, missing-provider behavior, auth-error no-fallback, transient fallback, and bounded attempts.
+- [x] Run focused tests and confirm expected failures.
+- [x] Implement deterministic routing and sanitized route results.
+- [x] Run focused tests and confirm PASS.
 
 ### Task 4: Autonomous cycle and diagnostics integration
 
@@ -101,12 +103,12 @@
 - Health status distinguishes configured from verified-connected.
 - Obsolete static `processAgentTask` code is removed and no route can invoke it.
 
-- [ ] Write tests proving the autonomous cycle invokes the router and preserves proposal schema; test provider endpoints' auth/RBAC and no-secret response.
-- [ ] Run focused tests and confirm expected failures.
-- [ ] Replace Gemini-only agent generation with routed generation; preserve existing structured response parsing and apply safety gates.
-- [ ] Add provider diagnostics routes and accurate health status.
-- [ ] Remove obsolete static agent path and extend smoke/security checks.
-- [ ] Run focused tests and confirm PASS.
+- [x] Write tests proving the autonomous cycle invokes the router and preserves proposal schema; test provider endpoints' auth/RBAC and no-secret response.
+- [x] Run focused tests and confirm expected failures.
+- [x] Replace Gemini-only agent generation with routed generation; preserve existing structured response parsing and apply safety gates.
+- [x] Add provider diagnostics routes and accurate health status.
+- [x] Remove obsolete static agent path and extend smoke/security checks.
+- [x] Run focused tests and confirm PASS.
 
 ### Task 5: Documentation, CI, and final verification
 
@@ -116,10 +118,10 @@
 - Modify: `package.json` only if a focused test script is required.
 - Modify: `.github/workflows/ci.yml` only if test commands change.
 
-- [ ] Document all provider environment variables, local Ollama networking, model overrides, and the difference between adapter tests and live connectivity.
-- [ ] Run `npm run lint`.
-- [ ] Run `npm run test`.
-- [ ] Run `npm run smoke`.
-- [ ] Run `npm run build`.
-- [ ] Run `docker build --tag forgex-ai-provider-routing .` where Docker is available.
-- [ ] Inspect the branch diff and confirm no secrets, fake connectivity claims, or unrelated changes.
+- [x] Document all provider environment variables, local Ollama networking, model overrides, and the difference between adapter tests and live connectivity.
+- [x] Run `npm run lint`.
+- [x] Run `npm run test`.
+- [x] Run `npm run smoke`.
+- [x] Run `npm run build`.
+- [x] Run `docker build --tag forgex-ai-provider-routing .` where Docker is available.
+- [x] Inspect the branch diff and confirm no secrets, fake connectivity claims, or unrelated changes.
