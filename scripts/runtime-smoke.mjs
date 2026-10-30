@@ -14,6 +14,11 @@ const server = spawn(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'server
     NODE_ENV: 'development',
     PORT: String(port),
     GEMINI_API_KEY: '',
+    ANTHROPIC_API_KEY: '',
+    OPENAI_API_KEY: '',
+    OPENROUTER_API_KEY: '',
+    OLLAMA_BASE_URL: '',
+    OLLAMA_MODEL: '',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -53,6 +58,19 @@ try {
     throw new Error(`Health/Gemini status failed: ${health.response.status} ${JSON.stringify(health.body)}`);
   }
 
+  const providers = await request('/api/ai/providers');
+  if (providers.response.status !== 200 || providers.body.success !== true || providers.body.providers?.length !== 5) {
+    throw new Error(`AI provider diagnostics failed: ${providers.response.status} ${JSON.stringify(providers.body)}`);
+  }
+  if (JSON.stringify(providers.body).includes('secret') || providers.body.providers.some((provider) => provider.status !== 'NOT_CONFIGURED')) {
+    throw new Error(`Provider diagnostics exposed unsafe or inaccurate metadata: ${JSON.stringify(providers.body)}`);
+  }
+
+  const providerTest = await request('/api/ai/providers/anthropic/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  if (providerTest.response.status !== 400 || providerTest.body.status !== 'NOT_CONFIGURED') {
+    throw new Error(`Anthropic unavailable-state failed: ${providerTest.response.status} ${JSON.stringify(providerTest.body)}`);
+  }
+
   const gemini = await request('/api/gemini/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (gemini.response.status !== 400 || gemini.body.status !== 'Not Configured') {
     throw new Error(`Gemini unavailable-state failed: ${gemini.response.status} ${JSON.stringify(gemini.body)}`);
@@ -63,7 +81,7 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: 'Smoke test: verify the autonomous engineering route is connected.' }),
   });
-  if (agent.response.status !== 200 || agent.body.success !== true || agent.body.task?.state !== 'FAILED' || !String(agent.body.task?.error || '').includes('GEMINI_API_KEY')) {
+  if (agent.response.status !== 200 || agent.body.success !== true || agent.body.task?.state !== 'FAILED' || !String(agent.body.task?.error || '').includes('No AI provider is configured')) {
     throw new Error(`Agent route failed: ${agent.response.status} ${JSON.stringify(agent.body)}`);
   }
 
