@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { WorkspaceSidebar, type WorkspaceSection } from './components/shell/WorkspaceSidebar';
 import { CreativeStudioView } from './components/creative/CreativeStudioView';
+import { ProjectLabView } from './components/lab/ProjectLabView';
 import { HealthModal } from './components/HealthModal';
 import { CommandCenterView } from './components/CommandCenterView';
 import { ProjectDevelopmentWorkspace } from './components/workspace/ProjectDevelopmentWorkspace';
@@ -56,7 +57,7 @@ import {
 
 export default function App() {
   const [lang, setLang] = useState<Language>('ar');
-  const [currentView, setCurrentView] = useState<'studio' | 'home' | 'workspace' | 'creative' | 'comingSoon'>('studio');
+  const [currentView, setCurrentView] = useState<'studio' | 'home' | 'workspace' | 'creative' | 'lab' | 'comingSoon'>('studio');
   const [activeSection, setActiveSection] = useState<WorkspaceSection>('studio');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentRole, setCurrentRole] = useState<UserRole>('Owner');
@@ -393,7 +394,7 @@ export default function AppRender() {
     <div className="flex flex-col h-screen bg-[#0d1117] text-slate-100 font-sans overflow-hidden" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       {/* Top Universal Header */}
       <Header
-        currentView={currentView === 'creative' || currentView === 'comingSoon' ? 'studio' : currentView}
+        currentView={currentView === 'creative' || currentView === 'lab' || currentView === 'comingSoon' ? 'studio' : currentView}
         onViewChange={(view) => {
           setCurrentView(view);
           setActiveSection(view);
@@ -415,7 +416,7 @@ export default function AppRender() {
           onToggle={() => setSidebarCollapsed((value) => !value)}
           onNavigate={(section) => {
             setActiveSection(section);
-            if (section === 'home' || section === 'studio' || section === 'workspace' || section === 'creative') {
+            if (section === 'home' || section === 'studio' || section === 'workspace' || section === 'creative' || section === 'lab') {
               setCurrentView(section);
             } else {
               setCurrentView('comingSoon');
@@ -739,6 +740,8 @@ export default function AppRender() {
         )}
 
         {currentView === 'creative' && <CreativeStudioView lang={lang} />}
+
+        {currentView === 'lab' && <ProjectLabView lang={lang} />}
 
         {currentView === 'comingSoon' && (
           <main className="forge-page" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
