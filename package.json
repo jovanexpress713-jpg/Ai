@@ -11,7 +11,7 @@
     "clean": "rm -rf dist",
     "verify": "node scripts/verify-workspace.mjs",
     "lint": "tsc --noEmit",
-    "test": "node scripts/security-tests.mjs && tsx scripts/auth-policy-tests.ts && tsx scripts/sandbox-policy-tests.ts",
+    "test": "node scripts/security-tests.mjs && tsx scripts/auth-policy-tests.ts && tsx scripts/sandbox-policy-tests.ts && node scripts/ui-contract-tests.mjs",
     "smoke": "node scripts/runtime-smoke.mjs",
     "check": "npm run lint && npm run test && npm run smoke && npm run build"
   },
