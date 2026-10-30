@@ -18,6 +18,7 @@ import {
 } from './workspace-fs.ts';
 import { verifyProposedChanges } from './sandbox.ts';
 import fs from 'node:fs';
+import { runBoundedRepair } from './agent-repair.ts';
 
 
 export async function testGeminiConnection(): Promise<{
@@ -312,7 +313,41 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
   try {
     // Never execute AI-generated code in the live workspace. First validate the complete
     // proposed patch in a disposable isolated workspace, then atomically apply it.
-    const verification = await verifyProposedChanges(task.proposedChanges, ['npm run lint', 'npm run test', 'npm run build']);
+    const repairRun = await runBoundedRepair(
+      task.proposedChanges,
+      (candidate) => verifyProposedChanges(candidate, ['npm run lint', 'npm run test', 'npm run build']),
+      async (candidate, failedVerification, attempt) => {
+        try {
+          const allowedPaths = candidate.map((change) => change.filePath).sort();
+          const repairResponse = await routeModelRequest({
+            taskCategory: 'debugging',
+            maxOutputTokens: 8192,
+            timeoutMs: 90000,
+            prompt: 'The previous proposed patch failed isolated verification. Repair only the already-proposed files.\n' +
+              'Original task: ' + task.description + '\nRepair attempt: ' + attempt + '\n' +
+              'Verification command: ' + failedVerification.command + '\nExit code: ' + failedVerification.exitCode + '\n' +
+              'stdout:\n' + failedVerification.stdout + '\nstderr:\n' + failedVerification.stderr + '\n' +
+              'Current proposed files:\n' + candidate.map((change) => '=== ' + change.filePath + ' ===\n' + change.newContent).join('\n') +
+              '\nReturn JSON only: {"proposedFiles":[{"filePath":"existing path","newContent":"complete corrected file content"}]}. ' +
+              'Return every existing path exactly once. Do not add, remove, rename, or modify any other file.',
+            systemPrompt: 'You are FORGEX repair engineer. Diagnose the verification failure and return complete corrected file contents. Output valid JSON only, no markdown.',
+          });
+          const parsed = JSON.parse(repairResponse.text) as { proposedFiles?: Array<{ filePath?: string; newContent?: string }> };
+          if (!Array.isArray(parsed.proposedFiles) || parsed.proposedFiles.length !== allowedPaths.length) return null;
+          const returnedPaths = parsed.proposedFiles.map((item) => String(item.filePath || '')).sort();
+          if (returnedPaths.some((filePath, index) => filePath !== allowedPaths[index])) return null;
+          return parsed.proposedFiles.map((item) => {
+            const previous = candidate.find((change) => change.filePath === item.filePath)!;
+            if (typeof item.newContent !== 'string') throw new Error('Repair response omitted complete file content.');
+            const diff = computeUnifiedDiff(previous.originalContent, item.newContent, previous.filePath);
+            return { ...previous, newContent: item.newContent, diffSummary: { additions: diff.additions, deletions: diff.deletions, changes: diff.changes }, applied: false };
+          });
+        } catch { return null; }
+      },
+      2,
+    );
+    const candidateChanges = repairRun.candidate;
+    const verification = repairRun.verification;
     if (!verification.success) {
       const failed = updateAgentTask(taskId, {
         state: 'FAILED',
@@ -343,14 +378,14 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
     // already changed by this task from the snapshots captured before the first write.
     const snapshots = new Map<string, string | null>();
     try {
-      for (const change of task.proposedChanges) {
+      for (const change of candidateChanges) {
         try {
           snapshots.set(change.filePath, readWorkspaceFile(change.filePath).content);
         } catch {
           snapshots.set(change.filePath, null);
         }
       }
-      for (const change of task.proposedChanges) {
+      for (const change of candidateChanges) {
         writeWorkspaceFile(change.filePath, change.newContent);
         change.applied = true;
       }
@@ -390,7 +425,7 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
         },
       ],
     });
-    recordAuditLog('AGENT', `Applied verified changes for task ${taskId}. Isolated lint, tests, and build passed.`);
+    recordAuditLog('AGENT', `Applied verified changes for task ${taskId}. Isolated lint, tests, and build passed after ${repairRun.repairs} repair attempt(s).`);
     return completed || task;
   } catch (err: any) {
     const errorMsg = err?.message || String(err);
