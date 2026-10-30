@@ -80,7 +80,7 @@ export default function App() {
   }>>([
     {
       sender: 'agent',
-      text: 'مرحباً بك في ForgeX AI Studio! منصة الهندسة البرمجية المستقلة المتكاملة. يمكنك تجربة الأوامر الفورية على الكانفاس، أو الانتقال إلى مركز القيادة ومساحة العمل (IDE) المتكاملة لإدارة ملفات المشروع الحقيقية والترمينال والتحقق الآلي.',
+      text: 'مرحباً بك في FORGEX AI. أرسل طلبك إلى محرك الهندسة، ثم راجع المقترحات ونتائج التحقق في مساحة العمل قبل اعتماد أي تغيير.',
       status: null,
       timestamp: 'الآن',
     },
@@ -202,15 +202,12 @@ export default function App() {
         throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
       }
 
-      setLastGeneratedPrompt(textToSend);
-      setPreviewKey((k) => k + 1);
-
       setStudioMessages((prev) => [
         ...prev,
         {
           sender: 'agent',
-          text: data.message || (lang === 'ar' ? 'تم تحليل طلبك وتحديث كود الواجهة بنجاح.' : 'Request processed successfully.'),
-          status: 'success',
+          text: data.message || (lang === 'ar' ? 'تمت معالجة الطلب. راجع المقترح في مساحة العمل قبل تطبيقه.' : 'Request processed. Review the proposed changes in the workspace before applying them.'),
+          status: null,
           timestamp: new Date().toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {
             hour: '2-digit',
             minute: '2-digit',
@@ -454,8 +451,7 @@ export default function AppRender() {
 
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-2 text-xs bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700 text-slate-300 shadow-sm">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-medium text-emerald-400">Agent Online</span>
+                    <span className="font-medium text-slate-300">{lang === 'ar' ? 'مساحة العمل' : 'Workspace'}</span>
                   </div>
                 </div>
               </div>
@@ -677,12 +673,13 @@ export default function AppRender() {
                   </button>
 
                   <button
-                    onClick={handleExport}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition-all shadow-md shadow-emerald-600/20 active:scale-95"
-                    title="Export Code"
+                    type="button"
+                    disabled
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-slate-500 rounded-lg text-xs font-medium cursor-not-allowed"
+                    title={lang === 'ar' ? 'تصدير ملفات المشروع الفعلية غير متاح في هذا العرض' : 'Exporting actual project files is not available in this view'}
                   >
                     {copied ? <Check className="w-3.5 h-3.5" /> : <Layers className="w-3.5 h-3.5" />}
-                    <span>{copied ? (lang === 'ar' ? 'تم النسخ!' : 'Copied!') : (lang === 'ar' ? 'تصدير' : 'Export')}</span>
+                    <span>{lang === 'ar' ? 'التصدير غير متاح' : 'Export unavailable'}</span>
                   </button>
                 </div>
               </div>
@@ -703,11 +700,13 @@ export default function AppRender() {
                       <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3 text-slate-500">
                         <span>// ForgeX AI Studio — Live Generated Component</span>
                         <button
-                          onClick={handleExport}
-                          className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px]"
+                          type="button"
+                          disabled
+                          title={lang === 'ar' ? 'هذا عرض توضيحي وليس كود المشروع الفعلي' : 'Illustrative preview, not actual project source'}
+                          className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 text-slate-500 text-[11px] cursor-not-allowed"
                         >
                           <Copy className="w-3 h-3" />
-                          <span>Copy</span>
+                          <span>{lang === 'ar' ? 'عرض توضيحي' : 'Preview only'}</span>
                         </button>
                       </div>
                       <pre className="text-indigo-300 leading-relaxed overflow-x-auto">
