@@ -5,6 +5,8 @@ import path from 'node:path';
 const port = 4317;
 const baseUrl = `http://127.0.0.1:${port}`;
 const dbPath = path.resolve(process.cwd(), 'data/forgex_db.json');
+const labPath = path.resolve(process.cwd(), 'data/lab_runs.json');
+const labBackup = fs.existsSync(labPath) ? fs.readFileSync(labPath) : null;
 const dbBackup = fs.existsSync(dbPath) ? fs.readFileSync(dbPath) : null;
 
 const server = spawn(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'server.ts'], {
@@ -63,6 +65,15 @@ try {
     throw new Error(`Project profile detection failed: ${projectProfile.response.status} ${JSON.stringify(projectProfile.body)}`);
   }
 
+  const inspection = await request('/api/lab/inspect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  if (inspection.response.status !== 200 || inspection.body.run?.status !== 'INSPECTED' || inspection.body.run?.commandsExecuted?.length !== 0 || !inspection.body.run?.checks?.some((check) => check.id === 'build-execution' && check.status === 'NOT_RUN')) {
+    throw new Error(`Project Lab inspection failed or claimed unexecuted work: ${inspection.response.status} ${JSON.stringify(inspection.body)}`);
+  }
+  const labHistory = await request('/api/lab/runs');
+  if (labHistory.response.status !== 200 || !labHistory.body.runs?.some((run) => run.id === inspection.body.run.id)) {
+    throw new Error(`Project Lab history persistence failed: ${labHistory.response.status} ${JSON.stringify(labHistory.body)}`);
+  }
+
   const providers = await request('/api/ai/providers');
   if (providers.response.status !== 200 || providers.body.success !== true || providers.body.providers?.length !== 5) {
     throw new Error(`AI provider diagnostics failed: ${providers.response.status} ${JSON.stringify(providers.body)}`);
@@ -94,6 +105,8 @@ try {
 } finally {
   if (dbBackup) fs.writeFileSync(dbPath, dbBackup);
   else fs.rmSync(dbPath, { force: true });
+  if (labBackup) fs.writeFileSync(labPath, labBackup);
+  else fs.rmSync(labPath, { force: true });
   server.kill('SIGTERM');
   await new Promise((resolve) => setTimeout(resolve, 300));
 }
