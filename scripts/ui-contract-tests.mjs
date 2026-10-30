@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [app, sidebar, creative, header, styles] = await Promise.all([
+const [app, sidebar, creative, header, styles, lab] = await Promise.all([
   readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/shell/WorkspaceSidebar.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/creative/CreativeStudioView.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/Header.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/index.css', import.meta.url), 'utf8'),
+  readFile(new URL('../src/components/lab/ProjectLabView.tsx', import.meta.url), 'utf8'),
 ]);
 
 assert.match(app, /if\s*\(!res\.ok\)/, 'Studio requests must reject non-2xx responses');
@@ -27,5 +28,8 @@ assert.match(creative, /generation and export engine has not been connected yet/
 assert.match(creative, /لم يتم ربطه بعد/, 'Arabic creative status must disclose missing integration');
 assert.doesNotMatch(header, /Database Persistence/, 'Do not display an unconditional fake database health badge');
 assert.match(styles, /prefers-reduced-motion/, 'Motion must respect reduced-motion preferences');
+assert.match(app, /currentView === 'lab' && <ProjectLabView/, 'Project Lab navigation must open the real project profile view');
+assert.match(lab, /\/api\/lab\/profile/, 'Project Lab must request a real detected project profile');
+assert.match(lab, /execution engine is not connected yet/i, 'Project Lab must disclose that execution is not yet available');
 
 process.stdout.write('FORGEX UI contract tests passed.\n');
