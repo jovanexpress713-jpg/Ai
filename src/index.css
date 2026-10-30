@@ -181,3 +181,23 @@ body { background: var(--forge-bg); color: var(--forge-text); }
   .forge-role-select { display:none; }
   .forge-topbar-actions { gap:5px; }
 }
+
+
+/* Mobile-first Studio layout: keep controls usable and never squeeze both panes. */
+@media (max-width: 760px) {
+  .forge-studio-shell { position:relative; display:flex; flex-direction:column; overflow:hidden; }
+  .forge-studio-chat { width:100%; min-width:0; flex:1 1 58%; border-inline:0; border-bottom:1px solid var(--forge-border); }
+  .forge-studio-preview { width:100%; min-width:0; flex:1 1 42%; min-height:180px; }
+  .forge-studio-chat > div:first-child { padding:10px 12px; }
+  .forge-studio-chat textarea { min-height:54px; }
+  .forge-studio-preview > div:first-child { min-height:46px; }
+  .forge-studio-preview .flex-1.p-6 { padding:8px; }
+  .forge-studio-preview .max-w-\[375px\],
+  .forge-studio-preview .max-w-\[768px\] { max-width:100%; height:100%; }
+}
+@media (max-width: 430px) {
+  .forge-studio-chat { flex-basis:62%; }
+  .forge-studio-preview { flex-basis:38%; min-height:150px; }
+  .forge-studio-chat .text-base { font-size:13px; }
+  .forge-studio-chat .p-4 { padding:10px; }
+}
