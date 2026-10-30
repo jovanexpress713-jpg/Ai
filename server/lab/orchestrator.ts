@@ -1,10 +1,13 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { detectProject } from './project-detect.ts';
 import type { LabCheck, ProjectLabRun } from './types.ts';
 
 function isRegularFile(root: string, relative: string): boolean {
-  const target = new URL(relative.split('/').map(encodeURIComponent).join('/'), `file://${root.replace(/\\\\/g, '/')}/`);
+  const absoluteRoot = path.resolve(root);
+  const target = path.resolve(absoluteRoot, relative);
+  if (!target.startsWith(absoluteRoot + path.sep)) return false;
   try {
     const stat = fs.lstatSync(target);
     return stat.isFile() && !stat.isSymbolicLink();
