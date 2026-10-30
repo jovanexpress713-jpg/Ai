@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, feat/real-engineering-agent]
   pull_request:
     branches: [main, master]
 
@@ -23,6 +23,9 @@ jobs:
 
       - name: Run verification suite
         run: npm run check
+
+      - name: Run Lab execution verification
+        run: npx tsx scripts/lab-execution-tests.ts
 
       - name: Build production container
         run: docker build --tag forgex-ai-ci .

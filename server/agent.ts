@@ -1,4 +1,5 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { routeModelRequest } from './ai/router.ts';
+import { testProviderConnection } from './ai/providers/index.ts';
 import {
   AgentTask,
   AgentCycleState,
@@ -17,24 +18,8 @@ import {
 } from './workspace-fs.ts';
 import { verifyProposedChanges } from './sandbox.ts';
 import fs from 'node:fs';
+import { runBoundedRepair } from './agent-repair.ts';
 
-
-export function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey.trim() === '' || apiKey === 'MY_GEMINI_API_KEY') {
-    return null;
-  }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
-  });
-}
-
-const SUPPORTED_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
 
 export async function testGeminiConnection(): Promise<{
   configured: boolean;
@@ -45,78 +30,22 @@ export async function testGeminiConnection(): Promise<{
   error?: string;
   errorCategory?: 'AUTH_ERROR' | 'RATE_LIMIT' | 'TIMEOUT' | 'NETWORK_ERROR' | 'CONFIG_ERROR';
 }> {
-  const ai = getGeminiClient();
-  if (!ai) {
-    return {
-      configured: false,
-      connected: false,
-      error: 'GEMINI_API_KEY is not configured in environment variables.',
-      errorCategory: 'CONFIG_ERROR',
-    };
-  }
-
-  const startTime = Date.now();
-  let lastError: any = null;
-
-  for (const model of SUPPORTED_MODELS) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-      const result = await Promise.race([
-        ai.models.generateContent({
-          model,
-          contents: 'Ping test. Reply with: {"status":"PONG","message":"FORGEX AI Gemini Connected"}.',
-          config: {
-            responseMimeType: 'application/json',
-          },
-        }),
-        new Promise<never>((_, reject) => {
-          controller.signal.addEventListener('abort', () =>
-            reject(new Error('REQUEST_TIMEOUT: Gemini API call timed out after 12s.'))
-          );
-        }),
-      ]);
-
-      clearTimeout(timeoutId);
-      const latencyMs = Date.now() - startTime;
-      const text = result.text || '';
-
-      return {
-        configured: true,
-        connected: true,
-        model,
-        responsePreview: text.substring(0, 150),
-        latencyMs,
-      };
-    } catch (err: any) {
-      lastError = err;
-      // If 429 quota, try next supported model in list
-      const msg = err?.message || String(err);
-      if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) {
-        continue;
-      }
-      break;
-    }
-  }
-
-  const latencyMs = Date.now() - startTime;
-  const msg = lastError?.message || String(lastError);
-
-  let errorCategory: 'AUTH_ERROR' | 'RATE_LIMIT' | 'TIMEOUT' | 'NETWORK_ERROR' = 'NETWORK_ERROR';
-  if (msg.includes('REQUEST_TIMEOUT') || msg.includes('timeout')) {
-    errorCategory = 'TIMEOUT';
-  } else if (msg.includes('API_KEY_INVALID') || msg.includes('401') || msg.includes('403') || msg.includes('unauthenticated')) {
-    errorCategory = 'AUTH_ERROR';
-  } else if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('rate limit')) {
-    errorCategory = 'RATE_LIMIT';
-  }
-
+  const result = await testProviderConnection('gemini');
+  const errorCategory = result.status === 'NOT_CONFIGURED'
+    ? 'CONFIG_ERROR'
+    : result.status === 'AUTH_ERROR'
+      ? 'AUTH_ERROR'
+      : result.status === 'RATE_LIMITED'
+        ? 'RATE_LIMIT'
+        : result.status === 'UNAVAILABLE'
+          ? 'NETWORK_ERROR'
+          : undefined;
   return {
-    configured: true,
-    connected: false,
-    latencyMs,
-    error: msg,
+    configured: result.configured,
+    connected: result.connected,
+    model: result.model,
+    latencyMs: result.latencyMs,
+    error: result.error,
     errorCategory,
   };
 }
@@ -165,9 +94,7 @@ export async function runAutonomousCycle(params: {
     proposedChanges: [],
   });
 
-  const ai = getGeminiClient();
-
-  try {
+    try {
     // Step 2: Context Collection & Project Detection (ANALYZING)
     updateAgentTask(task.id, {
       state: 'ANALYZING',
@@ -230,12 +157,7 @@ export async function runAutonomousCycle(params: {
       ],
     });
 
-    if (!ai) {
-      // No Gemini API Key: Fail cleanly with clear reason
-      throw new Error('Gemini — Not Configured. GEMINI_API_KEY is required to plan and execute autonomous code modifications.');
-    }
-
-    const systemPrompt = `${AGENT_ROLE_PROMPTS[assignedAgent] || AGENT_ROLE_PROMPTS.Planner}
+        const systemPrompt = `${AGENT_ROLE_PROMPTS[assignedAgent] || AGENT_ROLE_PROMPTS.Planner}
 You are executing an autonomous development cycle on this repository.
 Your task:
 1. Understand user request: "${userRequest}"
@@ -256,7 +178,7 @@ User Request: "${userRequest}"
 
 Plan concrete modifications. For each file you propose to change, provide the relative path and full new content.`;
 
-    // Step 4: Executing via Gemini (EXECUTING)
+    // Step 4: Execute through the configured cost-aware provider router (EXECUTING)
     updateAgentTask(task.id, {
       state: 'EXECUTING',
       steps: [
@@ -270,57 +192,33 @@ Plan concrete modifications. For each file you propose to change, provide the re
           title: 'Agent Code Execution & Synthesis',
           state: 'EXECUTING',
           agent: assignedAgent,
-          detail: 'Consulting Gemini 3.8 Flash model for precise source alterations...',
+          detail: 'Selecting one configured AI provider using the low-cost routing policy...',
           timestamp: new Date().toISOString(),
         },
       ],
     });
 
-    let response: any = null;
-    let usedModel = 'gemini-3.1-flash-lite';
-    for (const m of SUPPORTED_MODELS) {
-      try {
-        response = await ai.models.generateContent({
-          model: m,
-          contents: promptContext,
-          config: {
-            systemInstruction: systemPrompt,
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                planSummary: { type: Type.STRING },
-                proposedFiles: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      filePath: { type: Type.STRING },
-                      action: { type: Type.STRING },
-                      explanation: { type: Type.STRING },
-                      newContent: { type: Type.STRING },
-                    },
-                    required: ['filePath', 'newContent'],
-                  },
-                },
-              },
-              required: ['planSummary', 'proposedFiles'],
-            },
-          },
-        });
-        usedModel = m;
-        break;
-      } catch (err: any) {
-        if ((err?.message || '').includes('429') || (err?.message || '').includes('RESOURCE_EXHAUSTED')) {
-          continue;
-        }
-        throw err;
-      }
+    const routed = await routeModelRequest({
+      prompt: promptContext,
+      systemPrompt: `${systemPrompt}
+Return one valid JSON object only, with this exact shape:
+{
+  "planSummary": "short implementation summary",
+  "proposedFiles": [
+    {
+      "filePath": "relative/path",
+      "action": "create or update",
+      "explanation": "why this file changes",
+      "newContent": "complete new file content"
     }
-    if (!response) {
-      throw new Error('All supported Gemini models are temporarily rate-limited. Please retry shortly.');
-    }
-
+  ]
+}
+Do not use markdown fences. Include complete file contents. Do not claim changes were applied; return proposals only.`,
+      taskCategory: 'coding',
+      maxOutputTokens: 8192,
+      timeoutMs: 90000,
+    });
+    const response = { text: routed.text };
     const parsed = JSON.parse(response.text || '{}');
     const proposedChanges: ProposedFileChange[] = [];
 
@@ -364,7 +262,7 @@ Plan concrete modifications. For each file you propose to change, provide the re
           title: 'Agent Code Execution & Synthesis',
           state: 'COMPLETED',
           agent: assignedAgent,
-          detail: parsed.planSummary || `Generated ${proposedChanges.length} proposed file alterations.`,
+          detail: `[${routed.provider}/${routed.model}] ${parsed.planSummary || `Generated ${proposedChanges.length} proposed file alterations.`}`,
           timestamp: new Date().toISOString(),
         },
         {
@@ -415,7 +313,41 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
   try {
     // Never execute AI-generated code in the live workspace. First validate the complete
     // proposed patch in a disposable isolated workspace, then atomically apply it.
-    const verification = await verifyProposedChanges(task.proposedChanges, ['npm run lint', 'npm run test', 'npm run build']);
+    const repairRun = await runBoundedRepair(
+      task.proposedChanges,
+      (candidate) => verifyProposedChanges(candidate, ['npm run lint', 'npm run test', 'npm run build']),
+      async (candidate, failedVerification, attempt) => {
+        try {
+          const allowedPaths = candidate.map((change) => change.filePath).sort();
+          const repairResponse = await routeModelRequest({
+            taskCategory: 'debugging',
+            maxOutputTokens: 8192,
+            timeoutMs: 90000,
+            prompt: 'The previous proposed patch failed isolated verification. Repair only the already-proposed files.\n' +
+              'Original task: ' + task.description + '\nRepair attempt: ' + attempt + '\n' +
+              'Verification command: ' + failedVerification.command + '\nExit code: ' + failedVerification.exitCode + '\n' +
+              'stdout:\n' + failedVerification.stdout + '\nstderr:\n' + failedVerification.stderr + '\n' +
+              'Current proposed files:\n' + candidate.map((change) => '=== ' + change.filePath + ' ===\n' + change.newContent).join('\n') +
+              '\nReturn JSON only: {"proposedFiles":[{"filePath":"existing path","newContent":"complete corrected file content"}]}. ' +
+              'Return every existing path exactly once. Do not add, remove, rename, or modify any other file.',
+            systemPrompt: 'You are FORGEX repair engineer. Diagnose the verification failure and return complete corrected file contents. Output valid JSON only, no markdown.',
+          });
+          const parsed = JSON.parse(repairResponse.text) as { proposedFiles?: Array<{ filePath?: string; newContent?: string }> };
+          if (!Array.isArray(parsed.proposedFiles) || parsed.proposedFiles.length !== allowedPaths.length) return null;
+          const returnedPaths = parsed.proposedFiles.map((item) => String(item.filePath || '')).sort();
+          if (returnedPaths.some((filePath, index) => filePath !== allowedPaths[index])) return null;
+          return parsed.proposedFiles.map((item) => {
+            const previous = candidate.find((change) => change.filePath === item.filePath)!;
+            if (typeof item.newContent !== 'string') throw new Error('Repair response omitted complete file content.');
+            const diff = computeUnifiedDiff(previous.originalContent, item.newContent, previous.filePath);
+            return { ...previous, newContent: item.newContent, diffSummary: { additions: diff.additions, deletions: diff.deletions, changes: diff.changes }, applied: false };
+          });
+        } catch { return null; }
+      },
+      2,
+    );
+    const candidateChanges = repairRun.candidate;
+    const verification = repairRun.verification;
     if (!verification.success) {
       const failed = updateAgentTask(taskId, {
         state: 'FAILED',
@@ -446,14 +378,14 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
     // already changed by this task from the snapshots captured before the first write.
     const snapshots = new Map<string, string | null>();
     try {
-      for (const change of task.proposedChanges) {
+      for (const change of candidateChanges) {
         try {
           snapshots.set(change.filePath, readWorkspaceFile(change.filePath).content);
         } catch {
           snapshots.set(change.filePath, null);
         }
       }
-      for (const change of task.proposedChanges) {
+      for (const change of candidateChanges) {
         writeWorkspaceFile(change.filePath, change.newContent);
         change.applied = true;
       }
@@ -475,6 +407,7 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
 
     const completed = updateAgentTask(taskId, {
       state: 'COMPLETED',
+      proposedChanges: candidateChanges,
       verificationResult: {
         success: true,
         stdout: verification.stdout,
@@ -488,12 +421,12 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
           title: 'Isolated Pre-commit Verification',
           state: 'COMPLETED',
           agent: 'Tester',
-          detail: 'Lint, tests, and production build passed in an isolated disposable workspace; verified changes were then applied to the live workspace.',
+          detail: 'Lint, tests, and production build passed in an isolated disposable workspace after ' + repairRun.repairs + ' AI repair attempt(s); verified changes were then applied to the live workspace.',
           timestamp: new Date().toISOString(),
         },
       ],
     });
-    recordAuditLog('AGENT', `Applied verified changes for task ${taskId}. Isolated lint, tests, and build passed.`);
+    recordAuditLog('AGENT', `Applied verified changes for task ${taskId}. Isolated lint, tests, and build passed after ${repairRun.repairs} repair attempt(s).`);
     return completed || task;
   } catch (err: any) {
     const errorMsg = err?.message || String(err);
@@ -534,61 +467,3 @@ function flattenTree(nodes: any[]): string[] {
   return result;
 }
 
-export interface UIUXContext {
-  colorSystem: {
-    primary: string;
-    secondary: string;
-    surface: string;
-    text: string;
-  };
-  typography: string;
-  gridSystem: string;
-}
-
-export const defaultDesignTokens: UIUXContext = {
-  colorSystem: {
-    primary: '#6366f1',
-    secondary: '#06b6d4',
-    surface: '#0f172a',
-    text: '#f8fafc',
-  },
-  typography: 'Inter, Cairo, sans-serif',
-  gridSystem: 'Flexbox / CSS Grid 12-Column Responsive',
-};
-
-export async function processAgentTask(prompt: string) {
-  console.log(`[ForgeX Agent] جاري معالجة الطلب: ${prompt}`);
-
-  const responseData = {
-    message: `تم تحليل أمرك: "${prompt}". جرى تطبيق قواعد التناسق البصري وأنظمة الهيكلية المعتمدة.`,
-    modifiedFiles: ['src/App.tsx', 'src/components/workspace/LivePreviewPanel.tsx'],
-    tokensApplied: defaultDesignTokens,
-  };
-
-  try {
-    const escapedPrompt = prompt.replace(/"/g, '\\"');
-    const previewContent = `import React from 'react';
-
-export function LivePreviewPanel() {
-  return (
-    <div className="p-8 bg-slate-900 text-slate-100 h-full flex flex-col justify-center items-center text-center">
-      <div className="w-16 h-16 bg-indigo-600/20 border border-indigo-500/40 rounded-2xl flex items-center justify-center mb-4 text-indigo-400 text-2xl font-bold shadow-lg shadow-indigo-500/10">
-        FX
-      </div>
-      <h2 className="text-2xl font-bold mb-2">تم تطبيق التعديلات بنجاح</h2>
-      <p className="text-slate-400 max-w-md text-sm leading-relaxed">
-        استناداً إلى طلبك: "${escapedPrompt}" - تم تحديث المكونات مع تطبيق كامل معايير تجربة المستخدم.
-      </p>
-    </div>
-  );
-}
-
-export default LivePreviewPanel;
-`;
-    writeWorkspaceFile('src/components/workspace/LivePreviewPanel.tsx', previewContent);
-  } catch (err) {
-    console.error('تنبيه أثناء تحديث مساحة العمل:', err);
-  }
-
-  return responseData;
-}

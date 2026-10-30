@@ -28,7 +28,7 @@ assert('terminal shell composition is blocked', terminal.includes('/[;&|`$(){}<>
 assert('destructive git operations are blocked', terminal.includes('git\\s+(reset|clean|checkout|restore|rebase|push|commit|merge|cherry-pick)'));
 assert('production terminal uses sandbox adapter', terminal.includes('executeSandboxCommand') && terminal.includes('sandboxRequired'));
 assert('sandbox uses namespace isolation', sandbox.includes('--unshare-all'));
-assert('agent verifies proposed changes before live apply', agent.includes('verifyProposedChanges(task.proposedChanges'));
+assert('agent verifies proposed changes before live apply', agent.includes('runBoundedRepair(') && agent.includes('(candidate) => verifyProposedChanges(candidate,'));
 assert('agent runs lint, tests, and build', agent.includes("['npm run lint', 'npm run test', 'npm run build']"));
 assert('failed autonomous verification leaves workspace untouched', agent.includes('workspace unchanged'));
 assert('agent process uses real autonomous cycle', server.includes("app.post('/api/agent/process'") && server.includes('runAutonomousCycle') && !server.includes('processAgentTask'));

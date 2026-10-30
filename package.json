@@ -11,7 +11,7 @@
     "clean": "rm -rf dist",
     "verify": "node scripts/verify-workspace.mjs",
     "lint": "tsc --noEmit",
-    "test": "node scripts/security-tests.mjs && tsx scripts/auth-policy-tests.ts && tsx scripts/sandbox-policy-tests.ts",
+    "test": "node scripts/security-tests.mjs && tsx scripts/auth-policy-tests.ts && tsx scripts/sandbox-policy-tests.ts && node scripts/ui-contract-tests.mjs && tsx scripts/provider-config-tests.ts && tsx scripts/provider-adapter-tests.ts && tsx scripts/provider-router-tests.ts && tsx scripts/project-detect-tests.ts && tsx scripts/lab-inspection-tests.ts && tsx scripts/agent-repair-tests.ts",
     "smoke": "node scripts/runtime-smoke.mjs",
     "check": "npm run lint && npm run test && npm run smoke && npm run build"
   },
@@ -34,7 +34,7 @@
     "@types/react-dom": "19.3.0",
     "autoprefixer": "10.4.21",
     "tailwindcss": "4.3.3",
-    "typescript": "7.0.2",
+    "typescript": "5.9.3",
     "@types/express": "4.17.21"
   }
 }
