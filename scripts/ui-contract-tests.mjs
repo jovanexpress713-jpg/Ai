@@ -31,6 +31,9 @@ assert.doesNotMatch(header, /Database Persistence/, 'Do not display an unconditi
 assert.match(styles, /prefers-reduced-motion/, 'Motion must respect reduced-motion preferences');
 assert.match(app, /currentView === 'lab' && <ProjectLabView/, 'Project Lab navigation must open the real project profile view');
 assert.match(lab, /\/api\/lab\/profile/, 'Project Lab must request a real detected project profile');
+assert.match(lab, /\/api\/lab\/run/, 'Project Lab must call the real execution endpoint');
+assert.match(lab, /Run build|تشغيل البناء/, 'Project Lab must expose a real build execution control');
+assert.match(lab, /Run tests|تشغيل الاختبارات/, 'Project Lab must expose a real test execution control');
 assert.match(lab, /execution engine is not connected yet/i, 'Project Lab must disclose that execution is not yet available');
 assert.match(lab, /\/api\/lab\/inspect/, 'Project Lab must submit a real static inspection request');
 assert.match(lab, /commandsExecuted\.length/, 'Project Lab must show the actual number of executed commands');
