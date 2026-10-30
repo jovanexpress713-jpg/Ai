@@ -34,7 +34,7 @@ assert.match(lab, /\/api\/lab\/profile/, 'Project Lab must request a real detect
 assert.match(lab, /\/api\/lab\/run/, 'Project Lab must call the real execution endpoint');
 assert.match(lab, /Run build|تشغيل البناء/, 'Project Lab must expose a real build execution control');
 assert.match(lab, /Run tests|تشغيل الاختبارات/, 'Project Lab must expose a real test execution control');
-assert.match(lab, /execution engine is not connected yet/i, 'Project Lab must disclose that execution is not yet available');
+assert.doesNotMatch(lab, /execution engine is not connected yet/i, 'Project Lab must not claim the execution engine is unavailable after it is connected');
 assert.match(lab, /\/api\/lab\/inspect/, 'Project Lab must submit a real static inspection request');
 assert.match(lab, /commandsExecuted\.length/, 'Project Lab must show the actual number of executed commands');
 assert.match(lab, /NOT_RUN/, 'Project Lab must distinguish unexecuted tests from passing tests');
