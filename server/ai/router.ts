@@ -70,6 +70,10 @@ export async function routeModelRequest(
     throw new ProviderRequestError(request.provider || 'gemini', 'UPSTREAM_ERROR', 'A non-empty prompt is required.');
   }
 
+  if (request.model !== undefined && !request.model.trim()) {
+    throw new ProviderRequestError(request.provider || 'gemini', 'UPSTREAM_ERROR', 'An explicit model override must be a non-empty model identifier.');
+  }
+
   const env = dependencies.env ?? process.env;
   const configured = configuredProviderOrder(env);
   let candidates: ProviderId[];
