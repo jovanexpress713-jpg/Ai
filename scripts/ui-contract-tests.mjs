@@ -13,6 +13,9 @@ assert.match(app, /if\s*\(!res\.ok\)/, 'Studio requests must reject non-2xx resp
 assert.match(app, /status:\s*'error'/, 'Studio request failures must be represented as errors');
 assert.doesNotMatch(app, /Visual adjustments and components updated successfully/, 'Failed requests must never be reported as successful');
 assert.doesNotMatch(app, /تم تطبيق التعديلات البصرية، تعديل المكونات، وتحديث المعاينة بنجاح/, 'Arabic failure fallback must not claim success');
+assert.doesNotMatch(app, /Agent Online/, 'Do not show a hard-coded live agent connection');
+assert.match(app, /Review the proposed changes in the workspace before applying them/, 'Successful proposal creation must not imply applied changes');
+assert.match(app, /disabled[\s\S]{0,250}Preview only/, 'Illustrative code preview must not be offered as a real export');
 
 for (const section of ['home', 'studio', 'workspace', 'lab', 'creative', 'projects', 'integrations', 'release', 'settings']) {
   assert.ok(sidebar.includes("id: '" + section + "'"), 'Missing navigation section: ' + section);
