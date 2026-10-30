@@ -1,6 +1,6 @@
 # FORGEX AI Provider Routing Foundation Implementation Plan
 
-**Implementation status:** Complete on `feat/provider-routing-foundation`. CI evidence: provider-routing build/test/smoke/Docker run 51 passed; task-preference and project-lab UI contract suite is being re-verified on the latest branch head.
+**Implementation status:** Complete on `feat/provider-routing-foundation`. Latest verified CI run 79 passed after provider routing, task-specific preferences, Project Lab detection, persistent static inspection, provider diagnostics UI, runtime smoke, production build, and Docker image build. Live third-party provider connections remain unverified until real server credentials or a reachable Ollama endpoint are configured.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
