@@ -10,6 +10,8 @@ import { listProviderConfigs } from './server/ai/config.ts';
 import { testProviderConnection } from './server/ai/providers/index.ts';
 import { PROVIDER_IDS, type ProviderId } from './server/ai/types.ts';
 import { detectProject } from './server/lab/project-detect.ts';
+import { inspectProject } from './server/lab/orchestrator.ts';
+import { loadLabRuns, saveLabRun } from './server/lab/store.ts';
 import { login, logout, session, requireAuth, getAuthenticatedUser } from './server/auth.ts';
 import { isProductionAuthConfigured } from './server/auth-policy.ts';
 import { registerWorkspaceAndIntegrationRoutes } from './server/legacy-routes.ts';
@@ -139,6 +141,27 @@ app.post('/api/agent/task/:id/reject', (req: Request, res: Response) => {
   if (!requirePermission(res, ROLE_ACTIONS.REJECT_TASK)) return;
   try { const task = rejectTaskChanges(req.params.id); res.json({ success: true, task }); }
   catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/lab/runs', (_req: Request, res: Response) => {
+  if (!requirePermission(res, 'READ_FILE')) return;
+  try {
+    res.json({ success: true, runs: loadLabRuns().slice(0, 20) });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error?.message || 'Could not read Project Lab history.' });
+  }
+});
+
+app.post('/api/lab/inspect', (_req: Request, res: Response) => {
+  if (!requirePermission(res, 'READ_FILE')) return;
+  try {
+    const root = process.env.FORGEX_WORKSPACE_ROOT || process.cwd();
+    const run = inspectProject(root);
+    saveLabRun(run);
+    res.json({ success: true, run });
+  } catch (error: any) {
+    res.status(422).json({ success: false, error: error?.message || 'Project inspection failed.' });
+  }
 });
 
 app.get('/api/lab/profile', (_req: Request, res: Response) => {
