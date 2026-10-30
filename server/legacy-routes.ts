@@ -1,21 +1,6 @@
 import type { Express, Request, Response } from 'express';
-import {
-  getDb,
-  saveDb,
-  checkPermission,
-  addMessageToConversation,
-  recordAuditLog,
-  TerminalEntry,
-} from './db.ts';
-import {
-  writeWorkspaceFile,
-  createWorkspaceItem,
-  deleteWorkspaceItem,
-  renameWorkspaceItem,
-  undoFileChange,
-  computeUnifiedDiff,
-} from './workspace-fs.ts';
-import { deploymentStatus, triggerDeployment } from './deployment.ts';
+import { getDb, saveDb, checkPermission, addMessageToConversation, recordAuditLog } from './db.ts';
+import { writeWorkspaceFile, createWorkspaceItem, deleteWorkspaceItem, renameWorkspaceItem, undoFileChange, computeUnifiedDiff } from './workspace-fs.ts';
 import { syncWorkspaceToGitHub, fetchRepoBranches } from './github.ts';
 
 type PermissionGuard = (res: Response, action: Parameters<typeof checkPermission>[1]) => boolean;
