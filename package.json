@@ -12,7 +12,8 @@
     "verify": "node scripts/verify-workspace.mjs",
     "lint": "tsc --noEmit",
     "test": "node scripts/security-tests.mjs && tsx scripts/auth-policy-tests.ts && tsx scripts/sandbox-policy-tests.ts",
-    "check": "npm run lint && npm run test && npm run build"
+    "smoke": "node scripts/runtime-smoke.mjs",
+    "check": "npm run lint && npm run test && npm run smoke && npm run build"
   },
   "dependencies": {
     "@google/genai": "2.4.0",
