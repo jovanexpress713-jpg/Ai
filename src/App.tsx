@@ -347,6 +347,7 @@ export default function AppRender() {
       setCurrentTask(task);
       setTasks((prev) => [task, ...prev]);
       setCurrentView('workspace');
+      setActiveSection('workspace');
       loadDbAndFiles();
     } catch (err: any) {
       alert(`Cycle failed: ${err.message}`);
@@ -669,7 +670,7 @@ export default function AppRender() {
                     }`}
                   >
                     {showCode ? <Eye className="w-3.5 h-3.5" /> : <Code className="w-3.5 h-3.5" />}
-                    <span>{showCode ? (lang === 'ar' ? 'المعاينة الحية' : 'Live Preview') : (lang === 'ar' ? 'كود المصدر' : 'Source Code')}</span>
+                    <span>{showCode ? (lang === 'ar' ? 'المعاينة الحية' : 'Live Preview') : (lang === 'ar' ? 'نموذج كود توضيحي' : 'Illustrative code sample')}</span>
                   </button>
 
                   <button
@@ -698,7 +699,7 @@ export default function AppRender() {
                   {showCode ? (
                     <div className="p-4 font-mono text-xs text-slate-300 bg-slate-900 h-full overflow-auto" dir="ltr">
                       <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3 text-slate-500">
-                        <span>// ForgeX AI Studio — Live Generated Component</span>
+                        <span>// Illustrative UI sample — not the active project source</span>
                         <button
                           type="button"
                           disabled
@@ -717,7 +718,7 @@ export default function AppRender() {
         FX
       </div>
       <h2 className="text-2xl font-bold mb-2">
-        ${lang === 'ar' ? 'المشروع جاهز ومُصمم بحسب المعايير العصرية' : 'Project is ready and engineered to modern specs'}
+        ${lang === 'ar' ? 'مثال توضيحي لواجهة حديثة' : 'Illustrative modern UI sample'}
       </h2>
       <p className="text-slate-400 max-w-md text-sm leading-relaxed">
         ${lastGeneratedPrompt ? `${lang === 'ar' ? 'طلب المستخدم' : 'Prompt'}: "${lastGeneratedPrompt}"` : (lang === 'ar' ? 'تطبيق أنظمة التصميم المتقدمة وتجربة المستخدم السلسة.' : 'Modern UI/UX design systems applied.')}
@@ -766,6 +767,7 @@ export default function AppRender() {
             onOpenTask={(task) => {
               setCurrentTask(task);
               setCurrentView('workspace');
+              setActiveSection('workspace');
             }}
             onGoToWorkspace={() => setCurrentView('workspace')}
             isSubmitting={isWorkspaceProcessing}
