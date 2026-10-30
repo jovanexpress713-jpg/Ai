@@ -1,4 +1,5 @@
 export type AuthEnvironment = {
+  [key: string]: string | undefined;
   NODE_ENV?: string;
   FORGEX_ADMIN_EMAIL?: string;
   FORGEX_ADMIN_PASSWORD?: string;
