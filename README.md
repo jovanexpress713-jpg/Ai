@@ -35,7 +35,7 @@ Configure only the providers you intend to use. Credentials are read from server
 | OpenRouter | `OPENROUTER_API_KEY`, optional `OPENROUTER_MODEL` |
 | Ollama | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` |
 
-Set `FORGEX_DEFAULT_PROVIDER` to a configured provider to choose the first routing preference. Without an override, the deterministic low-cost preference order is Gemini, Ollama, OpenRouter, Anthropic, then OpenAI. Only one provider is called at a time. Fallback is limited to transient rate-limit, timeout, network, or availability errors, and is capped at three attempts. Invalid credentials and other non-transient errors stop immediately.
+Set `FORGEX_DEFAULT_PROVIDER` to a configured provider to choose the first routing preference. Optional task overrides include `FORGEX_PLANNING_PROVIDER`, `FORGEX_CODING_PROVIDER`, `FORGEX_DESIGN_PROVIDER`, `FORGEX_DEBUGGING_PROVIDER`, `FORGEX_REVIEW_PROVIDER`, `FORGEX_TESTING_PROVIDER`, and `FORGEX_DOCUMENTATION_PROVIDER`. Without an override, the deterministic low-cost preference order is Gemini, Ollama, OpenRouter, Anthropic, then OpenAI. Only one provider is called at a time. Fallback is limited to transient rate-limit, timeout, network, or availability errors, and is capped at three attempts. Invalid credentials and other non-transient errors stop immediately.
 
 Ollama must be reachable from the FORGEX server process. If FORGEX runs in Docker, `127.0.0.1` refers to the container itself, not the host machine or your phone. Use a reachable host/service address.
 
