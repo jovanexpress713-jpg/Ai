@@ -17,7 +17,7 @@ const packageJson = read('package.json');
 const failures = [];
 function assert(name, condition) { if (!condition) failures.push(name); }
 assert('authentication middleware is installed', server.includes("app.use('/api', sameOriginForStateChange, requireAuth)"));
-assert('production authentication is fail-closed', authPolicy.includes('env.NODE_ENV !== \'production\'') && auth.includes('Production authentication is not configured'));
+assert('production authentication is fail-closed', authPolicy.includes("env.NODE_ENV !== 'production'") && auth.includes('Production authentication is not configured'));
 assert('login timing-safe comparison', auth.includes('crypto.timingSafeEqual'));
 assert('login rate limiting exists', auth.includes('MAX_ATTEMPTS') && auth.includes('BLOCK_MS'));
 assert('role switching disabled in production', routes.includes("process.env.NODE_ENV === 'production' || !perm.allowed || user?.role !== 'Owner'"));
@@ -31,7 +31,7 @@ assert('sandbox uses namespace isolation', sandbox.includes('--unshare-all'));
 assert('agent verifies proposed changes before live apply', agent.includes('verifyProposedChanges(task.proposedChanges'));
 assert('agent runs lint, tests, and build', agent.includes("['npm run lint', 'npm run test', 'npm run build']"));
 assert('failed autonomous verification leaves workspace untouched', agent.includes('workspace unchanged'));
-assert('agent process uses real autonomous cycle', server.includes('runAutonomousCycle') && !agent.includes('writeWorkspaceFile(\'src/components/workspace/LivePreviewPanel.tsx\''));
+assert('agent process uses real autonomous cycle', server.includes("app.post('/api/agent/process'") && server.includes('runAutonomousCycle') && !server.includes('processAgentTask'));
 assert('agent process gates automatic apply by RBAC', server.includes("if (autoApply && !perm.allowed)"));
 assert('GitHub endpoints enforce RBAC', routes.includes("requirePermission(res, 'MANAGE_GITHUB')"));
 assert('Gemini diagnostics enforce RBAC', server.includes('ROLE_ACTIONS.GEMINI_TEST'));
@@ -43,7 +43,7 @@ assert('protected infrastructure cannot be auto-applied', ['package.json','packa
 assert('agent does not execute host shell directly', !agent.includes('node:child_process') && !agent.includes('promisify(exec)'));
 assert('sandbox does not expose host /etc', !sandbox.includes("'--ro-bind', '/etc', '/etc'"));
 assert('production startup requires bubblewrap', server.includes('bubblewrap is required for isolated execution'));
-assert('password error matches 16-char policy', server.includes('at least 16 characters'));
+assert('password policy is explicit', auth.includes('at least 16 characters') && authPolicy.includes('password.length >= 16'));
 assert('production image requires sandbox', dockerfile.includes('FORGEX_SANDBOX_REQUIRED=true'));
 assert('direct dependency versions are pinned', !packageJson.includes('"^'));
 assert('esbuild conflict removed', !packageJson.includes('"esbuild"'));
