@@ -154,3 +154,30 @@ body { background: var(--forge-bg); color: var(--forge-text); }
   .forge-sidebar,.forge-nav-item,.forge-tool-card { transition:none !important; }
   .forge-tool-card:hover { transform:none; }
 }
+
+.forge-topbar { min-height:66px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:10px 22px;background:#0c0f13ee;border-bottom:1px solid var(--forge-border);backdrop-filter:blur(18px);z-index:40; }
+.forge-topbar-brand { display:flex;align-items:center;gap:11px;text-align:start;min-width:220px; }
+.forge-topbar-brand strong { display:block;font-size:14px;letter-spacing:.1em;font-weight:800;color:#f4f7fa; }
+.forge-topbar-brand strong i { color:#a9d8ff;font-style:normal; }
+.forge-topbar-brand small { display:block;margin-top:3px;color:#788593;font-size:8px;letter-spacing:.14em; }
+.forge-topbar-status,.forge-topbar-actions { display:flex;align-items:center;gap:8px; }
+.forge-status-chip { display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--forge-border);border-radius:10px;background:#ffffff04;color:#a9b4c0;font-size:10px; }
+.forge-status-chip em { color:#758392;font-style:normal;font-size:9px; }
+.forge-status-chip b { width:6px;height:6px;border-radius:50%;background:#c9a66b; }
+.forge-status-chip b.is-connected { background:#7fd4a7;box-shadow:0 0 0 3px #7fd4a71c; }
+.forge-status-chip b.is-unavailable { background:#c9a66b; }
+.forge-icon-button,.forge-language-button,.forge-role-select { min-height:34px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 10px;border:1px solid var(--forge-border);border-radius:9px;color:#aeb8c4;background:#ffffff04;font-size:10px; }
+.forge-icon-button:hover,.forge-language-button:hover,.forge-role-select:hover { color:#eef6fc;border-color:#a9d8ff55; }
+.forge-role-select select { background:transparent;color:#dce4eb;outline:none;font-size:10px; }
+.forge-role-select option { background:#151b23;color:#f4f6f8; }
+@media (max-width: 900px) {
+  .forge-topbar-status { display:none; }
+  .forge-topbar-brand { min-width:0; }
+}
+@media (max-width: 520px) {
+  .forge-topbar { min-height:58px;padding:8px 10px;gap:8px; }
+  .forge-topbar-brand small { display:none; }
+  .forge-topbar-brand strong { font-size:12px; }
+  .forge-role-select { display:none; }
+  .forge-topbar-actions { gap:5px; }
+}
