@@ -704,7 +704,6 @@ export default function AppRender() {
                           type="button"
                           disabled
                           title="Illustrative preview only"
-                          className="cursor-not-allowed"
                         >
                           <Copy className="w-3 h-3" />
                           <span>{lang === 'ar' ? 'عرض توضيحي' : 'Preview only'}</span>
