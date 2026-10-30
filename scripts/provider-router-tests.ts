@@ -93,4 +93,5 @@ const successful = (provider: string) => async () => ({
   });
   assert.equal(result.provider, 'ollama', 'task-specific provider preference must override the global default');
 }
-\nconsole.log('Provider router tests: PASS');
+
+console.log('Provider router tests: PASS');
