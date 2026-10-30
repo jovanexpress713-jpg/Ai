@@ -80,3 +80,15 @@ export interface ProviderConnectionResult {
   latencyMs?: number;
   error?: string;
 }
+
+export class ProviderRequestError extends Error {
+  readonly code: ProviderErrorCode;
+  readonly provider: ProviderId;
+
+  constructor(provider: ProviderId, code: ProviderErrorCode, message: string) {
+    super(message);
+    this.name = 'ProviderRequestError';
+    this.provider = provider;
+    this.code = code;
+  }
+}
