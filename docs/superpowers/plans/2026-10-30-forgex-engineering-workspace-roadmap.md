@@ -47,6 +47,8 @@
 
 ### Plan B — Project runtime and test orchestrator (foundation for all labs)
 
+**Progress:** Initial read-only project detection is implemented and exposed through the authenticated `/api/lab/profile` endpoint and Project Lab screen. It identifies Vite/React, Node/Express, Flutter, Android Gradle, .NET, Python manifests, and unknown projects. This is profile discovery only; isolated command execution, persistent run orchestration, quotas, cancellation, and evidence reports remain pending.
+
 **Proposed files:**
 - Create: `server/lab/types.ts`, `server/lab/project-detect.ts`, `server/lab/runtime.ts`, `server/lab/orchestrator.ts`, `server/lab/evidence.ts`
 - Modify: `server.ts`, `server/sandbox.ts`, `server/db.ts`, `scripts/security-tests.mjs`
@@ -58,7 +60,7 @@
 - `executeLabStep(runId, step): LabStepResult` runs one allowlisted command in a disposable sandbox with timeout/resource limits.
 - `finalizeLabRun(runId): LabReport` stores command evidence, logs, environment metadata, and artifact hashes.
 
-- [ ] Test project detection for Vite/React, Node API, Flutter, Android Gradle, .NET, and unknown projects.
+- [x] Test project detection for Vite/React, Node API, Flutter, Android Gradle, .NET, and unknown projects.
 - [ ] Test rejection of path traversal, secret file reads, unapproved network access, command injection, and resource-limit violations.
 - [ ] Test timeout, cancellation, failed cleanup, and process termination.
 - [ ] Implement isolated execution and persistent lab evidence; do not reuse the production server's unrestricted process.
