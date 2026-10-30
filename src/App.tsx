@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
-import { WorkspaceSidebar, WorkspaceSection } from './components/shell/WorkspaceSidebar';
+import { WorkspaceSidebar, type WorkspaceSection } from './components/shell/WorkspaceSidebar';
 import { CreativeStudioView } from './components/creative/CreativeStudioView';
 import { HealthModal } from './components/HealthModal';
 import { CommandCenterView } from './components/CommandCenterView';
@@ -483,6 +483,12 @@ export default function AppRender() {
                               ? 'تم إجراء التحديث والتحقق من سلامة الأكواد تلقائياً'
                               : 'Update applied and code verified automatically'}
                           </span>
+                        </div>
+                      )}
+                      {msg.status === 'error' && (
+                        <div className="mt-3 pt-3 border-t border-rose-500/20 flex items-center gap-2 text-xs text-rose-300">
+                          <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                          <span>{lang === 'ar' ? 'تعذر التنفيذ — لم يتم تأكيد أي تغيير.' : 'Execution failed — no changes were confirmed.'}</span>
                         </div>
                       )}
                       {msg.timestamp && (
