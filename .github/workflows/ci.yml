@@ -24,5 +24,8 @@ jobs:
       - name: Run verification suite
         run: npm run check
 
+      - name: Run Lab execution verification
+        run: npx tsx scripts/lab-execution-tests.ts
+
       - name: Build production container
         run: docker build --tag forgex-ai-ci .
