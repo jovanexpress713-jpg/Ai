@@ -11,7 +11,7 @@
     "clean": "rm -rf dist",
     "verify": "node scripts/verify-workspace.mjs",
     "lint": "tsc --noEmit",
-    "test": "node scripts/security-tests.mjs",
+    "test": "node scripts/security-tests.mjs && tsx scripts/auth-policy-tests.ts && tsx scripts/sandbox-policy-tests.ts",
     "check": "npm run lint && npm run test && npm run build"
   },
   "dependencies": {
@@ -32,7 +32,6 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "autoprefixer": "10.4.21",
-    "esbuild": "0.25.0",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "@types/express": "4.17.21"
