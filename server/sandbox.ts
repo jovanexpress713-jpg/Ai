@@ -10,6 +10,36 @@ const ROOT = path.resolve(process.env.FORGEX_WORKSPACE_ROOT || process.cwd());
 const MAX_BUFFER = 12 * 1024 * 1024;
 const TIMEOUT = 60_000;
 
+const PROTECTED_FILES = new Set([
+  'package.json',
+  'package-lock.json',
+  'npm-shrinkwrap.json',
+  '.npmrc',
+  '.env',
+  '.env.local',
+  'Dockerfile',
+  'docker-compose.yml',
+  'vite.config.ts',
+  'tsconfig.json',
+]);
+
+export function normalizeProposedPath(filePath: string): string {
+  const normalizedInput = String(filePath || '').replaceAll('\\', '/').trim();
+  if (!normalizedInput || normalizedInput.startsWith('/')) {
+    throw new Error(`Unsafe proposed path: ${filePath}`);
+  }
+  const normalized = path.posix.normalize(normalizedInput).replace(/^\.\//, '');
+  if (!normalized || normalized === '.' || normalized === '..' || normalized.startsWith('../') || normalized.includes('/../')) {
+    throw new Error(`Unsafe proposed path: ${filePath}`);
+  }
+  return normalized;
+}
+
+export function isProtectedInfrastructurePath(filePath: string): boolean {
+  const normalized = normalizeProposedPath(filePath);
+  return PROTECTED_FILES.has(normalized) || normalized.startsWith('.github/') || normalized.startsWith('.git/');
+}
+
 function assertCommand(command: string): void {
   if (/[;&|`$(){}<>\n\r]/.test(command)) throw new Error('Sandbox rejected shell composition.');
   if (/\b(docker|podman|kubectl|curl|wget|ssh|scp|sudo|su|chmod|chown|mount|umount|kill|pkill|dd|mkfs|shutdown|reboot)\b/i.test(command)) throw new Error('Sandbox rejected privileged/network command.');
@@ -55,12 +85,9 @@ async function run(file: string, args: string[], cwd: string, isolate: boolean) 
     return execFileAsync(file, args, { cwd, env, timeout: TIMEOUT, maxBuffer: MAX_BUFFER });
   }
   if (!bwrapAvailable()) {
-    if (process.env.FORGEX_SANDBOX_REQUIRED === 'true') {
-      const e: any = new Error('Isolated sandbox is unavailable: bubblewrap is not installed.');
-      e.code = 'SANDBOX_UNAVAILABLE';
-      throw e;
-    }
-    return execFileAsync(file, args, { cwd, env, timeout: TIMEOUT, maxBuffer: MAX_BUFFER });
+    const e: any = new Error('Isolated sandbox is unavailable: bubblewrap is not installed.');
+    e.code = 'SANDBOX_UNAVAILABLE';
+    throw e;
   }
   const bwrap = fs.existsSync('/usr/bin/bwrap') ? '/usr/bin/bwrap' : '/bin/bwrap';
   const command = [file, ...args].map((x) => JSON.stringify(x)).join(' ');
@@ -93,7 +120,6 @@ export async function verifyWorkspace(type: string) {
   const selected = commands[type] || commands.lint;
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), `forgex-verify-${randomBytes(4).toString('hex')}-`));
   try {
-    // Verification runs against a disposable copy, so failed builds can never corrupt the real workspace.
     fs.cpSync(ROOT, temp, { recursive: true, filter: (src) => {
       const rel = path.relative(ROOT, src).replaceAll(path.sep, '/');
       return !rel.startsWith('.git/') && rel !== '.git' && !rel.startsWith('dist/') && rel !== 'dist' && !rel.startsWith('.env');
@@ -120,19 +146,13 @@ export async function verifyProposedChanges(changes: Array<{ filePath: string; n
       const rel = path.relative(ROOT, src).replaceAll(path.sep, '/');
       return !rel.startsWith('.git/') && rel !== '.git' && !rel.startsWith('dist/') && rel !== 'dist' && !rel.startsWith('.env');
     } });
-    const protectedFiles = new Set(['package.json', 'package-lock.json', 'npm-shrinkwrap.json', '.npmrc', '.env', '.env.local', 'Dockerfile', 'docker-compose.yml', 'vite.config.ts', 'tsconfig.json']);
     for (const change of changes) {
-      if (protectedFiles.has(change.filePath) || change.filePath.startsWith('.github/') || change.filePath.startsWith('.git/')) {
-        throw new Error(`Protected infrastructure file requires explicit manual review: ${change.filePath}`);
-      }
-      const normalized = change.filePath.replaceAll('\\', '/');
-      if (!normalized || normalized.startsWith('/') || normalized.split('/').includes('..')) {
-        throw new Error(`Unsafe proposed path: ${change.filePath}`);
+      const normalized = normalizeProposedPath(change.filePath);
+      if (isProtectedInfrastructurePath(normalized)) {
+        throw new Error(`Protected infrastructure file requires explicit manual review: ${normalized}`);
       }
       const target = path.resolve(temp, normalized);
       if (!target.startsWith(`${temp}${path.sep}`) && target !== temp) throw new Error(`Unsafe proposed path: ${change.filePath}`);
-      // A proposed patch must never follow an existing symlink out of the disposable
-      // workspace. Check every existing path component before creating the leaf.
       let cursor = target;
       while (cursor !== temp && !fs.existsSync(cursor)) cursor = path.dirname(cursor);
       const realTemp = fs.realpathSync(temp);
