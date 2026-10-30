@@ -40,6 +40,16 @@ const DEFAULT_PROVIDER_ORDER: readonly ProviderId[] = [
   'openai',
 ];
 
+const TASK_PROVIDER_ENV: Record<ModelTaskCategory, string> = {
+  planning: 'FORGEX_PLANNING_PROVIDER',
+  coding: 'FORGEX_CODING_PROVIDER',
+  design: 'FORGEX_DESIGN_PROVIDER',
+  debugging: 'FORGEX_DEBUGGING_PROVIDER',
+  review: 'FORGEX_REVIEW_PROVIDER',
+  testing: 'FORGEX_TESTING_PROVIDER',
+  documentation: 'FORGEX_DOCUMENTATION_PROVIDER',
+};
+
 const TRANSIENT_ERRORS = new Set([
   'RATE_LIMITED',
   'TIMEOUT',
@@ -47,9 +57,10 @@ const TRANSIENT_ERRORS = new Set([
   'UNAVAILABLE',
 ]);
 
-function configuredProviderOrder(env: ProviderEnvironment): ProviderId[] {
+function configuredProviderOrder(env: ProviderEnvironment, taskCategory?: ModelTaskCategory): ProviderId[] {
   const configured = new Set(listProviderConfigs(env).filter((item) => item.configured).map((item) => item.id));
-  const preferred = env.FORGEX_DEFAULT_PROVIDER?.trim() as ProviderId | undefined;
+  const taskPreference = taskCategory ? env[TASK_PROVIDER_ENV[taskCategory]]?.trim() : undefined;
+  const preferred = (taskPreference || env.FORGEX_DEFAULT_PROVIDER?.trim()) as ProviderId | undefined;
   const preferredIsValid = preferred && DEFAULT_PROVIDER_ORDER.includes(preferred);
   const ordered = preferredIsValid
     ? [preferred, ...DEFAULT_PROVIDER_ORDER.filter((id) => id !== preferred)]
@@ -75,7 +86,7 @@ export async function routeModelRequest(
   }
 
   const env = dependencies.env ?? process.env;
-  const configured = configuredProviderOrder(env);
+  const configured = configuredProviderOrder(env, request.taskCategory);
   let candidates: ProviderId[];
 
   if (request.provider) {
