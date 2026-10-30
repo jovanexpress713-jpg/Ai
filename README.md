@@ -4,7 +4,9 @@ FORGEX AI is a full-stack autonomous development workspace for inspecting, editi
 
 ## Implemented platform capabilities
 
-- Real React/Vite studio with Arabic RTL and English LTR.
+- Premium React/Vite workspace shell with Arabic RTL and English LTR.
+- Project Lab read-only detection of real project manifests, frameworks, package manager, scripts, and target platforms.
+- Models & Integrations view for safe provider configuration status and live connection diagnostics.
 - Express server with authenticated HttpOnly sessions.
 - Login throttling and timing-safe credential comparison.
 - Server-side RBAC for file access, editing, terminal execution, autonomous apply, GitHub and deployment.
