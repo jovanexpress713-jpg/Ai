@@ -6,6 +6,12 @@ import dotenv from 'dotenv';
 import { checkPermission } from './server/db.ts';
 import { getWorkspaceFileTree, readWorkspaceFile } from './server/workspace-fs.ts';
 import { testGeminiConnection, runAutonomousCycle, applyTaskChanges, rejectTaskChanges } from './server/agent.ts';
+import { listProviderConfigs } from './server/ai/config.ts';
+import { testProviderConnection } from './server/ai/providers/index.ts';
+import { PROVIDER_IDS, type ProviderId } from './server/ai/types.ts';
+import { detectProject } from './server/lab/project-detect.ts';
+import { inspectProject } from './server/lab/orchestrator.ts';
+import { loadLabRuns, saveLabRun } from './server/lab/store.ts';
 import { login, logout, session, requireAuth, getAuthenticatedUser } from './server/auth.ts';
 import { isProductionAuthConfigured } from './server/auth-policy.ts';
 import { registerWorkspaceAndIntegrationRoutes } from './server/legacy-routes.ts';
@@ -58,7 +64,8 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     success: true,
     timestamp: new Date().toISOString(),
     services: {
-      gemini: { status: geminiKey && geminiKey.trim() !== '' && geminiKey !== 'MY_GEMINI_API_KEY' ? 'connected' : 'not_configured', model: 'gemini-3.8-flash', reason: geminiKey ? undefined : 'GEMINI_API_KEY environment variable is not configured.' },
+      gemini: { status: geminiKey && geminiKey.trim() !== '' && geminiKey !== 'MY_GEMINI_API_KEY' ? 'configured_untested' : 'not_configured', model: process.env.FORGEX_GEMINI_MODEL || 'gemini-3.1-flash-lite', reason: geminiKey ? 'Credentials are configured; live connectivity has not been tested in this health check.' : 'GEMINI_API_KEY environment variable is not configured.' },
+      aiProviders: listProviderConfigs(),
       github: { status: githubToken && githubToken.trim() !== '' ? 'connected' : 'not_configured', reason: githubToken ? undefined : 'GITHUB_TOKEN environment variable is not configured.' },
       database: { status: 'connected', engine: 'JSON-Persistent-Store', path: 'data/forgex_db.json' },
       executionEnv: { status: 'connected', nodeVersion: process.version, platform: process.platform },
@@ -66,6 +73,25 @@ app.get('/api/health', async (_req: Request, res: Response) => {
       preview: { status: 'connected', port: PORT, url: `http://localhost:${PORT}` },
       deployment: { status: deployment.configured ? 'connected' : 'not_configured', provider: deployment.provider, githubActions: deployment.githubActions, vercelHook: deployment.vercelHook, reason: deployment.configured ? undefined : 'No deployment provider is configured.' },
     },
+  });
+});
+
+app.get('/api/ai/providers', (_req: Request, res: Response) => {
+  if (!requirePermission(res, 'MANAGE_SETTINGS')) return;
+  res.json({ success: true, providers: listProviderConfigs() });
+});
+
+app.post('/api/ai/providers/:providerId/test', async (req: Request, res: Response) => {
+  if (!requirePermission(res, 'MANAGE_SETTINGS')) return;
+  const providerId = req.params.providerId as ProviderId;
+  if (!PROVIDER_IDS.includes(providerId)) {
+    return res.status(400).json({ success: false, error: 'Unsupported provider. Choose gemini, anthropic, openai, openrouter, or ollama.' });
+  }
+  const result = await testProviderConnection(providerId);
+  res.status(result.connected ? 200 : result.status === 'NOT_CONFIGURED' ? 400 : 502).json({
+    success: result.connected,
+    status: result.status,
+    result,
   });
 });
 
@@ -115,6 +141,38 @@ app.post('/api/agent/task/:id/reject', (req: Request, res: Response) => {
   if (!requirePermission(res, ROLE_ACTIONS.REJECT_TASK)) return;
   try { const task = rejectTaskChanges(req.params.id); res.json({ success: true, task }); }
   catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/lab/runs', (_req: Request, res: Response) => {
+  if (!requirePermission(res, 'READ_FILE')) return;
+  try {
+    res.json({ success: true, runs: loadLabRuns().slice(0, 20) });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error?.message || 'Could not read Project Lab history.' });
+  }
+});
+
+app.post('/api/lab/inspect', (_req: Request, res: Response) => {
+  if (!requirePermission(res, 'READ_FILE')) return;
+  try {
+    const root = process.env.FORGEX_WORKSPACE_ROOT || process.cwd();
+    const run = inspectProject(root);
+    saveLabRun(run);
+    res.json({ success: true, run });
+  } catch (error: any) {
+    res.status(422).json({ success: false, error: error?.message || 'Project inspection failed.' });
+  }
+});
+
+app.get('/api/lab/profile', (_req: Request, res: Response) => {
+  if (!requirePermission(res, 'READ_FILE')) return;
+  try {
+    const root = process.env.FORGEX_WORKSPACE_ROOT || process.cwd();
+    const profile = detectProject(root);
+    res.json({ success: true, profile });
+  } catch (error: any) {
+    res.status(422).json({ success: false, error: error?.message || 'Project detection failed.' });
+  }
 });
 
 app.get('/api/fs/tree', (_req: Request, res: Response) => {

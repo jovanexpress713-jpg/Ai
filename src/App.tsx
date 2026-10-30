@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
+import { WorkspaceSidebar, type WorkspaceSection } from './components/shell/WorkspaceSidebar';
+import { CreativeStudioView } from './components/creative/CreativeStudioView';
+import { ProjectLabView } from './components/lab/ProjectLabView';
+import { AIProvidersView } from './components/integrations/AIProvidersView';
 import { HealthModal } from './components/HealthModal';
 import { CommandCenterView } from './components/CommandCenterView';
 import { ProjectDevelopmentWorkspace } from './components/workspace/ProjectDevelopmentWorkspace';
@@ -54,7 +58,9 @@ import {
 
 export default function App() {
   const [lang, setLang] = useState<Language>('ar');
-  const [currentView, setCurrentView] = useState<'studio' | 'home' | 'workspace'>('studio');
+  const [currentView, setCurrentView] = useState<'studio' | 'home' | 'workspace' | 'creative' | 'lab' | 'integrations' | 'comingSoon'>('studio');
+  const [activeSection, setActiveSection] = useState<WorkspaceSection>('studio');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentRole, setCurrentRole] = useState<UserRole>('Owner');
   const [health, setHealth] = useState<SystemHealthData | null>(null);
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
@@ -76,7 +82,7 @@ export default function App() {
   }>>([
     {
       sender: 'agent',
-      text: 'مرحباً بك في ForgeX AI Studio! منصة الهندسة البرمجية المستقلة المتكاملة. يمكنك تجربة الأوامر الفورية على الكانفاس، أو الانتقال إلى مركز القيادة ومساحة العمل (IDE) المتكاملة لإدارة ملفات المشروع الحقيقية والترمينال والتحقق الآلي.',
+      text: 'مرحباً بك في FORGEX AI. أرسل طلبك إلى محرك الهندسة، ثم راجع المقترحات ونتائج التحقق في مساحة العمل قبل اعتماد أي تغيير.',
       status: null,
       timestamp: 'الآن',
     },
@@ -193,34 +199,32 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: textToSend }),
       });
-      const data = await res.json();
-
-      setLastGeneratedPrompt(textToSend);
-      setPreviewKey((k) => k + 1);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
+      }
 
       setStudioMessages((prev) => [
         ...prev,
         {
           sender: 'agent',
-          text: data.message || (lang === 'ar' ? 'تم تحليل طلبك وتحديث كود الواجهة بنجاح.' : 'Request processed successfully.'),
-          status: 'success',
+          text: data.message || (lang === 'ar' ? 'تمت معالجة الطلب. راجع المقترح في مساحة العمل قبل تطبيقه.' : 'Request processed. Review the proposed changes in the workspace before applying them.'),
+          status: null,
           timestamp: new Date().toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {
             hour: '2-digit',
             minute: '2-digit',
           }),
         } as const,
       ]);
-    } catch {
-      setLastGeneratedPrompt(textToSend);
-      setPreviewKey((k) => k + 1);
+    } catch (err: any) {
       setStudioMessages((prev) => [
         ...prev,
         {
           sender: 'agent',
           text: lang === 'ar'
-            ? 'تم تطبيق التعديلات البصرية، تعديل المكونات، وتحديث المعاينة بنجاح!'
-            : 'Visual adjustments and components updated successfully!',
-          status: 'success',
+            ? `تعذر تنفيذ الطلب: ${err?.message || 'حدث خطأ غير معروف'}. لم يتم تأكيد أي تعديل.`
+            : `Request failed: ${err?.message || 'Unknown error'}. No changes were confirmed.`,
+          status: 'error',
           timestamp: new Date().toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {
             hour: '2-digit',
             minute: '2-digit',
@@ -345,6 +349,7 @@ export default function AppRender() {
       setCurrentTask(task);
       setTasks((prev) => [task, ...prev]);
       setCurrentView('workspace');
+      setActiveSection('workspace');
       loadDbAndFiles();
     } catch (err: any) {
       alert(`Cycle failed: ${err.message}`);
@@ -390,8 +395,11 @@ export default function AppRender() {
     <div className="flex flex-col h-screen bg-[#0d1117] text-slate-100 font-sans overflow-hidden" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       {/* Top Universal Header */}
       <Header
-        currentView={currentView}
-        onViewChange={setCurrentView}
+        currentView={currentView === 'creative' || currentView === 'lab' || currentView === 'integrations' || currentView === 'comingSoon' ? 'studio' : currentView}
+        onViewChange={(view) => {
+          setCurrentView(view);
+          setActiveSection(view);
+        }}
         health={health}
         currentRole={currentRole}
         onRoleChange={handleRoleChange}
@@ -399,6 +407,23 @@ export default function AppRender() {
         onLangChange={setLang}
         onOpenHealthModal={() => setIsHealthModalOpen(true)}
       />
+
+      {/* Premium workspace navigation */}
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <WorkspaceSidebar
+          active={activeSection}
+          lang={lang}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((value) => !value)}
+          onNavigate={(section) => {
+            setActiveSection(section);
+            if (section === 'home' || section === 'studio' || section === 'workspace' || section === 'creative' || section === 'lab' || section === 'integrations') {
+              setCurrentView(section);
+            } else {
+              setCurrentView('comingSoon');
+            }
+          }}
+        />
 
       {/* Main Content View Switcher */}
       <div className="flex-1 flex overflow-hidden">
@@ -429,8 +454,7 @@ export default function AppRender() {
 
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-2 text-xs bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700 text-slate-300 shadow-sm">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-medium text-emerald-400">Agent Online</span>
+                    <span className="font-medium text-slate-300">{lang === 'ar' ? 'مساحة العمل' : 'Workspace'}</span>
                   </div>
                 </div>
               </div>
@@ -458,6 +482,12 @@ export default function AppRender() {
                               ? 'تم إجراء التحديث والتحقق من سلامة الأكواد تلقائياً'
                               : 'Update applied and code verified automatically'}
                           </span>
+                        </div>
+                      )}
+                      {msg.status === 'error' && (
+                        <div className="mt-3 pt-3 border-t border-rose-500/20 flex items-center gap-2 text-xs text-rose-300">
+                          <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                          <span>{lang === 'ar' ? 'تعذر التنفيذ — لم يتم تأكيد أي تغيير.' : 'Execution failed — no changes were confirmed.'}</span>
                         </div>
                       )}
                       {msg.timestamp && (
@@ -642,16 +672,17 @@ export default function AppRender() {
                     }`}
                   >
                     {showCode ? <Eye className="w-3.5 h-3.5" /> : <Code className="w-3.5 h-3.5" />}
-                    <span>{showCode ? (lang === 'ar' ? 'المعاينة الحية' : 'Live Preview') : (lang === 'ar' ? 'كود المصدر' : 'Source Code')}</span>
+                    <span>{showCode ? (lang === 'ar' ? 'المعاينة الحية' : 'Live Preview') : (lang === 'ar' ? 'نموذج كود توضيحي' : 'Illustrative code sample')}</span>
                   </button>
 
                   <button
-                    onClick={handleExport}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition-all shadow-md shadow-emerald-600/20 active:scale-95"
-                    title="Export Code"
+                    type="button"
+                    disabled
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-slate-500 rounded-lg text-xs font-medium cursor-not-allowed"
+                    title={lang === 'ar' ? 'تصدير ملفات المشروع الفعلية غير متاح في هذا العرض' : 'Exporting actual project files is not available in this view'}
                   >
                     {copied ? <Check className="w-3.5 h-3.5" /> : <Layers className="w-3.5 h-3.5" />}
-                    <span>{copied ? (lang === 'ar' ? 'تم النسخ!' : 'Copied!') : (lang === 'ar' ? 'تصدير' : 'Export')}</span>
+                    <span>{lang === 'ar' ? 'التصدير غير متاح' : 'Export unavailable'}</span>
                   </button>
                 </div>
               </div>
@@ -670,13 +701,14 @@ export default function AppRender() {
                   {showCode ? (
                     <div className="p-4 font-mono text-xs text-slate-300 bg-slate-900 h-full overflow-auto" dir="ltr">
                       <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3 text-slate-500">
-                        <span>// ForgeX AI Studio — Live Generated Component</span>
+                        <span>// Illustrative UI sample — not the active project source</span>
                         <button
-                          onClick={handleExport}
-                          className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px]"
+                          type="button"
+                          disabled
+                          title="Illustrative preview only"
                         >
                           <Copy className="w-3 h-3" />
-                          <span>Copy</span>
+                          <span>{lang === 'ar' ? 'عرض توضيحي' : 'Preview only'}</span>
                         </button>
                       </div>
                       <pre className="text-indigo-300 leading-relaxed overflow-x-auto">
@@ -687,7 +719,7 @@ export default function AppRender() {
         FX
       </div>
       <h2 className="text-2xl font-bold mb-2">
-        ${lang === 'ar' ? 'المشروع جاهز ومُصمم بحسب المعايير العصرية' : 'Project is ready and engineered to modern specs'}
+        ${lang === 'ar' ? 'مثال توضيحي لواجهة حديثة' : 'Illustrative modern UI sample'}
       </h2>
       <p className="text-slate-400 max-w-md text-sm leading-relaxed">
         ${lastGeneratedPrompt ? `${lang === 'ar' ? 'طلب المستخدم' : 'Prompt'}: "${lastGeneratedPrompt}"` : (lang === 'ar' ? 'تطبيق أنظمة التصميم المتقدمة وتجربة المستخدم السلسة.' : 'Modern UI/UX design systems applied.')}
@@ -708,6 +740,21 @@ export default function AppRender() {
           </div>
         )}
 
+        {currentView === 'creative' && <CreativeStudioView lang={lang} />}
+
+        {currentView === 'lab' && <ProjectLabView lang={lang} />}
+
+        {currentView === 'integrations' && <AIProvidersView lang={lang} />}
+
+        {currentView === 'comingSoon' && (
+          <main className="forge-page" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+            <div className="forge-page-kicker"><Sparkles size={14} /> FORGEX AI</div>
+            <h1 className="forge-page-title">{lang === 'ar' ? 'هذه المساحة ضمن خارطة التطوير' : 'This workspace is on the delivery roadmap'}</h1>
+            <p className="forge-page-subtitle">{lang === 'ar' ? 'لم يتم ربط هذه الوظيفة بعد. لن نعرض بيانات أو حالة تشغيل وهمية. ستظهر هنا عند اكتمال تنفيذها وربطها بالخدمات الحقيقية.' : 'This capability is not connected yet. We will not show fabricated data or runtime status. It will appear here when its real implementation and integrations are ready.'}</p>
+            <div className="forge-unavailable-note">{lang === 'ar' ? 'الحالة: قيد التطوير — لا توجد عملية تشغيل متاحة حالياً.' : 'Status: In development — no runnable action is available yet.'}</div>
+          </main>
+        )}
+
         {/* VIEW 2: COMMAND CENTER */}
         {currentView === 'home' && (
           <CommandCenterView
@@ -725,6 +772,7 @@ export default function AppRender() {
             onOpenTask={(task) => {
               setCurrentTask(task);
               setCurrentView('workspace');
+              setActiveSection('workspace');
             }}
             onGoToWorkspace={() => setCurrentView('workspace')}
             isSubmitting={isWorkspaceProcessing}
@@ -770,6 +818,7 @@ export default function AppRender() {
             auditLogs={auditLogs}
           />
         )}
+      </div>
       </div>
 
       {/* Integration & Diagnostics Modal */}
