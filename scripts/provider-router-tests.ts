@@ -85,4 +85,12 @@ const successful = (provider: string) => async () => ({
   );
 }
 
-console.log('Provider router tests: PASS');
+
+{
+  const result = await routeModelRequest({ prompt: 'Design a visual system', taskCategory: 'design' }, {
+    env: { ...env, FORGEX_DESIGN_PROVIDER: 'ollama' },
+    generate: successful('ollama') as any,
+  });
+  assert.equal(result.provider, 'ollama', 'task-specific provider preference must override the global default');
+}
+\nconsole.log('Provider router tests: PASS');
