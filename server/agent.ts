@@ -19,6 +19,7 @@ import {
 import { verifyProposedChanges } from './sandbox.ts';
 import fs from 'node:fs';
 import { runBoundedRepair } from './agent-repair.ts';
+import { validateProposedChanges } from './agent-guards.ts';
 
 
 export async function testGeminiConnection(): Promise<{
@@ -228,18 +229,20 @@ Do not use markdown fences. Include complete file contents. Do not claim changes
         if (!item.filePath || typeof item.newContent !== 'string') continue;
 
         let originalContent = '';
+        let originalExists = false;
         try {
           const res = readWorkspaceFile(item.filePath);
           originalContent = res.content;
-        } catch {
-          // New file
-          originalContent = '';
+          originalExists = true;
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.startsWith('File does not exist:')) throw error;
         }
 
         const diff = computeUnifiedDiff(originalContent, item.newContent, item.filePath);
         proposedChanges.push({
           filePath: item.filePath,
           originalContent,
+          originalExists,
           newContent: item.newContent,
           diffSummary: {
             additions: diff.additions,
@@ -311,6 +314,22 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
 
   updateAgentTask(taskId, { state: 'VERIFYING' });
   try {
+    const inspectSnapshot = (filePath: string) => {
+      const target = resolveSafePath(filePath).fullPath;
+      if (!fs.existsSync(target)) return { exists: false };
+      return { exists: true, content: readWorkspaceFile(filePath).content };
+    };
+    const initialValidation = validateProposedChanges(task.proposedChanges, inspectSnapshot);
+    if ('error' in initialValidation) {
+      const failed = updateAgentTask(taskId, {
+        state: 'FAILED',
+        error: initialValidation.error,
+        verificationResult: { success: false, stdout: '', stderr: initialValidation.error, exitCode: 1, command: 'proposal freshness and safety validation' },
+      });
+      recordAuditLog('SECURITY', `Rejected stale or unsafe proposal ${taskId}: ${initialValidation.error}`);
+      return failed || task;
+    }
+
     // Never execute AI-generated code in the live workspace. First validate the complete
     // proposed patch in a disposable isolated workspace, then atomically apply it.
     const repairRun = await runBoundedRepair(
@@ -371,6 +390,27 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
         ],
       });
       recordAuditLog('SECURITY', `Rejected autonomous patch ${taskId}: isolated verification failed; workspace unchanged.`);
+      return failed || task;
+    }
+
+    const finalValidation = validateProposedChanges(candidateChanges, inspectSnapshot);
+    if ('error' in finalValidation) {
+      const failed = updateAgentTask(taskId, {
+        state: 'FAILED',
+        error: finalValidation.error,
+        verificationResult: { success: false, stdout: verification.stdout, stderr: finalValidation.error, exitCode: 1, command: 'final proposal freshness validation' },
+        steps: [
+          ...task.steps,
+          {
+            title: 'Final Workspace Conflict Check',
+            state: 'FAILED',
+            agent: 'Security Agent',
+            detail: 'The workspace changed while verification was running. No proposed changes were applied.',
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      });
+      recordAuditLog('SECURITY', `Rejected proposal ${taskId} because workspace files changed during verification.`);
       return failed || task;
     }
 

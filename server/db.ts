@@ -52,6 +52,7 @@ export type AgentCycleState =
 export interface ProposedFileChange {
   filePath: string;
   originalContent: string;
+  originalExists?: boolean;
   newContent: string;
   diffSummary: {
     additions: number;
