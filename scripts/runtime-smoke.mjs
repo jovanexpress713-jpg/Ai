@@ -58,6 +58,11 @@ try {
     throw new Error(`Health/Gemini status failed: ${health.response.status} ${JSON.stringify(health.body)}`);
   }
 
+  const projectProfile = await request('/api/lab/profile');
+  if (projectProfile.response.status !== 200 || projectProfile.body.profile?.framework !== 'react-vite' || !projectProfile.body.profile?.manifests?.includes('package.json')) {
+    throw new Error(`Project profile detection failed: ${projectProfile.response.status} ${JSON.stringify(projectProfile.body)}`);
+  }
+
   const providers = await request('/api/ai/providers');
   if (providers.response.status !== 200 || providers.body.success !== true || providers.body.providers?.length !== 5) {
     throw new Error(`AI provider diagnostics failed: ${providers.response.status} ${JSON.stringify(providers.body)}`);
