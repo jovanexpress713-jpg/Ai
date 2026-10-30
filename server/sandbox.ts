@@ -10,6 +10,14 @@ const ROOT = path.resolve(process.env.FORGEX_WORKSPACE_ROOT || process.cwd());
 const MAX_BUFFER = 12 * 1024 * 1024;
 const TIMEOUT = 60_000;
 
+/**
+ * Development's disposable workspace mode runs only the sandbox allowlist.
+ * Production always requires OS-level isolation, even if misconfigured.
+ */
+export function requiresSandboxIsolation(mode = process.env.FORGEX_SANDBOX_MODE, nodeEnv = process.env.NODE_ENV): boolean {
+  return nodeEnv === 'production' || (mode || 'workspace') !== 'workspace';
+}
+
 const PROTECTED_FILES = new Set([
   'package.json',
   'package-lock.json',
@@ -166,7 +174,7 @@ export async function verifyProposedChanges(changes: Array<{ filePath: string; n
     const outputs: string[] = [];
     for (const command of commands) {
       const { file, args } = argvFor(command);
-      const result = await run(file, args, temp, true);
+      const result = await run(file, args, temp, requiresSandboxIsolation());
       outputs.push(`$ ${command}\n${result.stdout || ''}${result.stderr || ''}`);
     }
     return { success: true, command: commands.join(' && '), stdout: outputs.join('\n'), stderr: '', exitCode: 0, durationMs: Date.now() - started };
