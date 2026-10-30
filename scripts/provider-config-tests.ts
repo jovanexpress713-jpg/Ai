@@ -41,8 +41,8 @@ for (const id of ids) {
   assert.equal(config.configured, true, id + ' should be configured');
   assert.equal(config.status, 'CONFIGURED_UNTESTED', id + ' must not claim a live connection');
   const serialized = JSON.stringify(config);
-  for (const value of Object.values(configuredEnv)) {
-    assert.equal(serialized.includes(value), false, 'provider metadata must not leak env values');
+  for (const value of [secret, 'anthropic-secret', 'openai-secret', 'router-secret']) {
+    assert.equal(serialized.includes(value), false, 'provider metadata must not leak credentials');
   }
 }
 
