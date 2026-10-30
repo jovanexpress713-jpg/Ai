@@ -128,7 +128,7 @@ export async function generateOpenAICompatible(
   };
   const response = await requestProviderJson(
     provider,
-    `${baseUrl.replace(/\\/+$/, '')}/chat/completions`,
+    `${baseUrl.replace(/\/+$/, '')}/chat/completions`,
     { method: 'POST', headers, body: JSON.stringify(payload) },
     request.timeoutMs ?? 30000,
     fetchImpl,
