@@ -407,6 +407,7 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
 
     const completed = updateAgentTask(taskId, {
       state: 'COMPLETED',
+      proposedChanges: candidateChanges,
       verificationResult: {
         success: true,
         stdout: verification.stdout,
@@ -420,7 +421,7 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
           title: 'Isolated Pre-commit Verification',
           state: 'COMPLETED',
           agent: 'Tester',
-          detail: 'Lint, tests, and production build passed in an isolated disposable workspace; verified changes were then applied to the live workspace.',
+          detail: 'Lint, tests, and production build passed in an isolated disposable workspace after ' + repairRun.repairs + ' AI repair attempt(s); verified changes were then applied to the live workspace.',
           timestamp: new Date().toISOString(),
         },
       ],
