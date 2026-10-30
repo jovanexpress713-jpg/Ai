@@ -143,7 +143,7 @@ async function expectProviderError(run: () => Promise<unknown>, code: string): P
 {
   await expectProviderError(() => generateWithProvider('openai', { prompt: 'x', timeoutMs: 15 }, {
     env,
-    fetchImpl: async (_input, init) => new Promise((_resolve, reject) => {
+    fetchImpl: async (_input, init) => new Promise<Response>((_resolve, reject) => {
       init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
     }),
   }), 'TIMEOUT');
