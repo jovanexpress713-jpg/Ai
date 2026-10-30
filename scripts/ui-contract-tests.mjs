@@ -32,6 +32,9 @@ assert.match(styles, /prefers-reduced-motion/, 'Motion must respect reduced-moti
 assert.match(app, /currentView === 'lab' && <ProjectLabView/, 'Project Lab navigation must open the real project profile view');
 assert.match(lab, /\/api\/lab\/profile/, 'Project Lab must request a real detected project profile');
 assert.match(lab, /execution engine is not connected yet/i, 'Project Lab must disclose that execution is not yet available');
+assert.match(lab, /\/api\/lab\/inspect/, 'Project Lab must submit a real static inspection request');
+assert.match(lab, /commandsExecuted\.length/, 'Project Lab must show the actual number of executed commands');
+assert.match(lab, /NOT_RUN/, 'Project Lab must distinguish unexecuted tests from passing tests');
 assert.match(app, /currentView === 'integrations' && <AIProvidersView/, 'Integrations navigation must open provider diagnostics');
 assert.match(integrations, /\/api\/ai\/providers/, 'Integrations view must use the real provider status API');
 assert.match(integrations, /\/test/, 'Integrations view must expose real connection tests');
