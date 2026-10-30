@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { detectProject } from './project-detect.ts';
-import type { LabCheck, ProjectLabRun } from './types.ts';
+import { executeLabChecks } from './executor.ts';
+import type { LabCheck, LabExecutableCheck, ProjectLabRun } from './types.ts';
 
 function isRegularFile(root: string, relative: string): boolean {
   const absoluteRoot = path.resolve(root);
@@ -45,32 +46,23 @@ export function inspectProject(root: string): ProjectLabRun {
     });
   }
 
-  if (detected.scripts.includes('build')) {
-    checks.push({ id: 'build-script-declared', label: 'Build script declaration', category: 'static', status: 'PASSED', detail: 'A build script is declared in package.json; it has not been executed.' });
-  } else {
-    checks.push({ id: 'build-script-declared', label: 'Build script declaration', category: 'static', status: 'BLOCKED', detail: 'No package.json build script was detected.' });
-  }
-
-  if (detected.scripts.includes('test')) {
-    checks.push({ id: 'test-script-declared', label: 'Test script declaration', category: 'static', status: 'PASSED', detail: 'A test script is declared in package.json; it has not been executed.' });
-  } else {
-    checks.push({ id: 'test-script-declared', label: 'Test script declaration', category: 'static', status: 'BLOCKED', detail: 'No package.json test script was detected.' });
-  }
-
   checks.push({
-    id: 'build-execution',
-    label: 'Build execution',
-    category: 'execution',
-    status: 'NOT_RUN',
-    detail: 'Not run: isolated project execution is not connected yet.',
+    id: 'build-script-declared',
+    label: 'Build script declaration',
+    category: 'static',
+    status: detected.scripts.includes('build') ? 'PASSED' : 'BLOCKED',
+    detail: detected.scripts.includes('build') ? 'A build script is declared in package.json.' : 'No package.json build script was detected.',
   });
   checks.push({
-    id: 'test-execution',
-    label: 'Automated test execution',
-    category: 'execution',
-    status: 'NOT_RUN',
-    detail: 'Not run: isolated project execution is not connected yet.',
+    id: 'test-script-declared',
+    label: 'Test script declaration',
+    category: 'static',
+    status: detected.scripts.includes('test') ? 'PASSED' : 'BLOCKED',
+    detail: detected.scripts.includes('test') ? 'A test script is declared in package.json.' : 'No package.json test script was detected.',
   });
+
+  checks.push({ id: 'build-execution', label: 'Build execution', category: 'execution', status: 'NOT_RUN', detail: 'Not run yet.' });
+  checks.push({ id: 'test-execution', label: 'Automated test execution', category: 'execution', status: 'NOT_RUN', detail: 'Not run yet.' });
 
   return {
     id: `lab_${randomUUID()}`,
@@ -81,4 +73,33 @@ export function inspectProject(root: string): ProjectLabRun {
     commandsExecuted: [],
     createdAt: new Date().toISOString(),
   };
+}
+
+export async function executeProject(root: string, requestedChecks: LabExecutableCheck[]): Promise<ProjectLabRun> {
+  const run = inspectProject(root);
+  const execution = await executeLabChecks(root, requestedChecks);
+  const resultByCheck = new Map(execution.results.map((result) => [result.check, result]));
+
+  run.status = 'EXECUTED';
+  run.execution = execution;
+  run.commandsExecuted = execution.results.filter((result) => result.command).map((result) => result.command);
+  run.checks = run.checks.map((check) => {
+    const key = check.id === 'build-execution' ? 'build' : check.id === 'test-execution' ? 'test' : null;
+    if (!key || !requestedChecks.includes(key)) return check;
+    const result = resultByCheck.get(key);
+    if (!result) return check;
+    return {
+      ...check,
+      status: result.status === 'PASSED' ? 'PASSED' : result.status === 'BLOCKED' ? 'BLOCKED' : 'FAILED',
+      detail: result.status === 'PASSED'
+        ? `Executed ${result.command} successfully in ${result.durationMs}ms.`
+        : result.status === 'TIMEOUT'
+          ? `Execution timed out after ${result.durationMs}ms.`
+          : result.status === 'BLOCKED'
+            ? result.stderr
+            : `Execution failed with exit code ${result.exitCode ?? 'unknown'}.`,
+    };
+  });
+
+  return run;
 }
