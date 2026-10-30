@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [app, sidebar, creative, header, styles, lab] = await Promise.all([
+const [app, sidebar, creative, header, styles, lab, integrations] = await Promise.all([
   readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/shell/WorkspaceSidebar.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/creative/CreativeStudioView.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/Header.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/index.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/components/lab/ProjectLabView.tsx', import.meta.url), 'utf8'),
+  readFile(new URL('../src/components/integrations/AIProvidersView.tsx', import.meta.url), 'utf8'),
 ]);
 
 assert.match(app, /if\s*\(!res\.ok\)/, 'Studio requests must reject non-2xx responses');
@@ -31,5 +32,9 @@ assert.match(styles, /prefers-reduced-motion/, 'Motion must respect reduced-moti
 assert.match(app, /currentView === 'lab' && <ProjectLabView/, 'Project Lab navigation must open the real project profile view');
 assert.match(lab, /\/api\/lab\/profile/, 'Project Lab must request a real detected project profile');
 assert.match(lab, /execution engine is not connected yet/i, 'Project Lab must disclose that execution is not yet available');
+assert.match(app, /currentView === 'integrations' && <AIProvidersView/, 'Integrations navigation must open provider diagnostics');
+assert.match(integrations, /\/api\/ai\/providers/, 'Integrations view must use the real provider status API');
+assert.match(integrations, /\/test/, 'Integrations view must expose real connection tests');
+assert.match(integrations, /never displayed or stored in the browser/i, 'Integrations view must explain server-only credentials');
 
 process.stdout.write('FORGEX UI contract tests passed.\n');
