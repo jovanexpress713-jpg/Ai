@@ -9,6 +9,7 @@ const env = {
   OPENAI_API_KEY: 'openai-secret',
   OLLAMA_BASE_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen2.5:3b',
+  FORGEX_DEFAULT_PROVIDER: 'gemini',
 };
 const successful = (provider: string) => async () => ({
   provider, model: provider + '-model', text: 'ok', latencyMs: 4,
@@ -65,6 +66,23 @@ const successful = (provider: string) => async () => ({
     generate: async (provider: any) => { attempts += 1; throw new ProviderRequestError(provider, 'UNAVAILABLE', 'offline'); },
   }), (error: unknown) => error instanceof ProviderRequestError && error.code === 'UNAVAILABLE');
   assert.equal(attempts, 2, 'fallback attempts must be bounded');
+}
+
+
+{
+  const result = await routeModelRequest({ prompt: 'Use the configured preference' }, {
+    env: { ...env, FORGEX_DEFAULT_PROVIDER: 'ollama' },
+    generate: successful('ollama') as any,
+  });
+  assert.equal(result.provider, 'ollama', 'configured default provider must be the first preference');
+}
+
+{
+  await assert.rejects(
+    () => routeModelRequest({ prompt: 'x', provider: 'gemini', model: '   ' }, { env }),
+    (error: unknown) => error instanceof ProviderRequestError && error.code === 'UPSTREAM_ERROR',
+    'blank explicit model overrides must be rejected rather than silently ignored',
+  );
 }
 
 console.log('Provider router tests: PASS');
