@@ -5,6 +5,7 @@ import { ProviderRequestError } from '../server/ai/types.ts';
 const env = {
   GEMINI_API_KEY: 'gemini-secret',
   ANTHROPIC_API_KEY: 'anthropic-secret',
+  OPENROUTER_API_KEY: 'openrouter-secret',
   OPENAI_API_KEY: 'openai-secret',
   OLLAMA_BASE_URL: 'http://127.0.0.1:11434',
   OLLAMA_MODEL: 'qwen2.5:3b',
