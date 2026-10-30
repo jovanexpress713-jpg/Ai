@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
+import { WorkspaceSidebar, WorkspaceSection } from './components/shell/WorkspaceSidebar';
+import { CreativeStudioView } from './components/creative/CreativeStudioView';
 import { HealthModal } from './components/HealthModal';
 import { CommandCenterView } from './components/CommandCenterView';
 import { ProjectDevelopmentWorkspace } from './components/workspace/ProjectDevelopmentWorkspace';
@@ -54,7 +56,9 @@ import {
 
 export default function App() {
   const [lang, setLang] = useState<Language>('ar');
-  const [currentView, setCurrentView] = useState<'studio' | 'home' | 'workspace'>('studio');
+  const [currentView, setCurrentView] = useState<'studio' | 'home' | 'workspace' | 'creative' | 'comingSoon'>('studio');
+  const [activeSection, setActiveSection] = useState<WorkspaceSection>('studio');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentRole, setCurrentRole] = useState<UserRole>('Owner');
   const [health, setHealth] = useState<SystemHealthData | null>(null);
   const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
@@ -193,7 +197,10 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: textToSend }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || data.message || `Request failed with status ${res.status}`);
+      }
 
       setLastGeneratedPrompt(textToSend);
       setPreviewKey((k) => k + 1);
@@ -210,17 +217,15 @@ export default function App() {
           }),
         } as const,
       ]);
-    } catch {
-      setLastGeneratedPrompt(textToSend);
-      setPreviewKey((k) => k + 1);
+    } catch (err: any) {
       setStudioMessages((prev) => [
         ...prev,
         {
           sender: 'agent',
           text: lang === 'ar'
-            ? 'تم تطبيق التعديلات البصرية، تعديل المكونات، وتحديث المعاينة بنجاح!'
-            : 'Visual adjustments and components updated successfully!',
-          status: 'success',
+            ? `تعذر تنفيذ الطلب: ${err?.message || 'حدث خطأ غير معروف'}. لم يتم تأكيد أي تعديل.`
+            : `Request failed: ${err?.message || 'Unknown error'}. No changes were confirmed.`,
+          status: 'error',
           timestamp: new Date().toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {
             hour: '2-digit',
             minute: '2-digit',
@@ -390,8 +395,11 @@ export default function AppRender() {
     <div className="flex flex-col h-screen bg-[#0d1117] text-slate-100 font-sans overflow-hidden" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       {/* Top Universal Header */}
       <Header
-        currentView={currentView}
-        onViewChange={setCurrentView}
+        currentView={currentView === 'creative' || currentView === 'comingSoon' ? 'studio' : currentView}
+        onViewChange={(view) => {
+          setCurrentView(view);
+          setActiveSection(view);
+        }}
         health={health}
         currentRole={currentRole}
         onRoleChange={handleRoleChange}
@@ -399,6 +407,23 @@ export default function AppRender() {
         onLangChange={setLang}
         onOpenHealthModal={() => setIsHealthModalOpen(true)}
       />
+
+      {/* Premium workspace navigation */}
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <WorkspaceSidebar
+          active={activeSection}
+          lang={lang}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((value) => !value)}
+          onNavigate={(section) => {
+            setActiveSection(section);
+            if (section === 'home' || section === 'studio' || section === 'workspace' || section === 'creative') {
+              setCurrentView(section);
+            } else {
+              setCurrentView('comingSoon');
+            }
+          }}
+        />
 
       {/* Main Content View Switcher */}
       <div className="flex-1 flex overflow-hidden">
@@ -708,6 +733,17 @@ export default function AppRender() {
           </div>
         )}
 
+        {currentView === 'creative' && <CreativeStudioView lang={lang} />}
+
+        {currentView === 'comingSoon' && (
+          <main className="forge-page" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+            <div className="forge-page-kicker"><Sparkles size={14} /> FORGEX AI</div>
+            <h1 className="forge-page-title">{lang === 'ar' ? 'هذه المساحة ضمن خارطة التطوير' : 'This workspace is on the delivery roadmap'}</h1>
+            <p className="forge-page-subtitle">{lang === 'ar' ? 'لم يتم ربط هذه الوظيفة بعد. لن نعرض بيانات أو حالة تشغيل وهمية. ستظهر هنا عند اكتمال تنفيذها وربطها بالخدمات الحقيقية.' : 'This capability is not connected yet. We will not show fabricated data or runtime status. It will appear here when its real implementation and integrations are ready.'}</p>
+            <div className="forge-unavailable-note">{lang === 'ar' ? 'الحالة: قيد التطوير — لا توجد عملية تشغيل متاحة حالياً.' : 'Status: In development — no runnable action is available yet.'}</div>
+          </main>
+        )}
+
         {/* VIEW 2: COMMAND CENTER */}
         {currentView === 'home' && (
           <CommandCenterView
@@ -770,6 +806,7 @@ export default function AppRender() {
             auditLogs={auditLogs}
           />
         )}
+      </div>
       </div>
 
       {/* Integration & Diagnostics Modal */}
