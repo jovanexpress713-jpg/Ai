@@ -320,7 +320,7 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
       return { exists: true, content: readWorkspaceFile(filePath).content };
     };
     const initialValidation = validateProposedChanges(task.proposedChanges, inspectSnapshot);
-    if (!initialValidation.valid) {
+    if ('error' in initialValidation) {
       const failed = updateAgentTask(taskId, {
         state: 'FAILED',
         error: initialValidation.error,
@@ -394,7 +394,7 @@ export async function applyTaskChanges(taskId: string): Promise<AgentTask> {
     }
 
     const finalValidation = validateProposedChanges(candidateChanges, inspectSnapshot);
-    if (!finalValidation.valid) {
+    if ('error' in finalValidation) {
       const failed = updateAgentTask(taskId, {
         state: 'FAILED',
         error: finalValidation.error,
