@@ -23,3 +23,6 @@ jobs:
 
       - name: Run verification suite
         run: npm run check
+
+      - name: Build production container
+        run: docker build --tag forgex-ai-ci .
