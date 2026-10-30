@@ -1,6 +1,6 @@
 # FORGEX AI Multi-Provider Routing Design
 
-**Status:** Approved architecture; implementation authorized by the repository owner.
+**Status:** Expanded proposal awaiting owner approval; provider-routing approach selected.
 **Date:** 2026-10-30
 
 ## Intent
@@ -25,9 +25,9 @@ Evolve FORGEX AI from a Gemini-only autonomous engineering workflow into a hybri
 - No automatic multi-model fan-out, which would multiply token costs.
 - No storing API keys in the JSON database or browser storage.
 - No arbitrary tool execution, shell permission expansion, or bypass of existing apply approvals.
-- No image-generation, voice, embeddings, vector database, or MCP server execution in this phase.
-- No promise that a provider is live-connected when its credentials or local service are unavailable.
-- No UI redesign in this foundational backend phase; expose truthful APIs for the existing UI to consume in a later pass.
+- Image generation, voice, embeddings, vector databases, and arbitrary third-party MCP execution are separate capabilities; do not simulate them in this release.
+- No promise that a provider, emulator, device, repository operation, or build is connected or successful unless it was actually exercised.
+- No automatic destructive repair or release signing without explicit policy and approval.
 
 ## Constraints
 
@@ -102,3 +102,109 @@ Replace the direct Gemini call inside `runAutonomousCycle` with the router while
 - Use native Fetch for Anthropic and OpenAI-compatible adapters to avoid adding multiple SDK dependencies in the low-budget foundation.
 - Keep the first phase backend-focused; provider dashboard controls can be added after the APIs and status semantics are proven.
 - Default routing must remain deterministic and explainable; no opaque automatic model selection.
+
+
+## Expanded product definition: Engineering and Quality Workspace
+
+FORGEX AI is intended to become an engineering workspace that can take a project from discovery and design through implementation, testing, repair, maintenance, version control, and release artifacts. The AI model is the reasoning layer; execution, test evidence, repository state, and build artifacts must come from real tools.
+
+### Project laboratory and execution environments
+
+Create an isolated, reproducible project environment for each project:
+
+- Detect project type, language, package manager, frameworks, build commands, test commands, runtime requirements, and target platforms from actual project files.
+- Provision only the required runtime and dependencies; cache immutable dependencies and build layers to reduce time and cost.
+- Run static analysis, type checks, unit tests, integration tests, security checks, dependency checks, builds, and runtime smoke tests.
+- Keep project data, secrets, and build outputs separated by project. Secrets must be injected at runtime and masked from logs.
+- Produce an inspectable test report containing commands, environment versions, exit codes, timestamps, logs, screenshots, and artifact hashes.
+- Distinguish PASS, FAIL, BLOCKED, NOT RUN, and NEEDS HUMAN INPUT. Never convert a skipped or unavailable test into PASS.
+
+### Interactive web and application testing
+
+For web applications, use a real browser automation runner (Playwright is the proposed default):
+
+- Launch the built application and open it in a real browser engine.
+- Exercise actual user journeys: navigation, forms, validation, authentication, search, CRUD, responsive layouts, keyboard interaction, and error states.
+- Capture screenshots, browser console errors, failed network requests, traces, and reproducible steps.
+- Check accessibility basics and responsive breakpoints.
+- Allow the agent to inspect rendered pages and screenshots, propose fixes, then rerun the same failing scenario and the regression suite.
+
+For Android applications:
+
+- Build with the project's real Gradle/Flutter/React Native toolchain; do not fabricate an APK.
+- Start an Android emulator in an isolated CI/runtime environment, install the generated APK, launch it, grant or deny permissions as scripted, and interact with visible UI and device controls.
+- Use an Android UI automation layer (Maestro is the proposed low-friction default; Appium can be an optional advanced adapter) to execute repeatable user journeys.
+- Collect Logcat, crash/ANR signals, screenshots/video where supported, network failures, package metadata, install/launch status, and test results.
+- Test a defined Android API/device matrix based on the app's declared min/target SDK and configured product requirements.
+- Physical-device testing is an optional second lane when a real device farm or connected device is available. An emulator result must be labeled emulator-tested, not physical-device-certified.
+- Export APK/AAB only from a successful build. A release APK must also pass configured signing and release validation; never claim Play Store readiness from a debug build.
+
+For Windows desktop applications:
+
+- Detect supported build targets and run builds/tests on a Windows runner or an explicitly supported Windows VM. Do not label a Linux-only build as Windows-tested.
+
+### Repository and source-control workspace
+
+Provide a repository workspace with real Git semantics:
+
+- Create/import repositories, clone and initialize projects, inspect history, branches, tags, diffs, and file status.
+- Create branches, commits, tags, pull requests, and reviews through Git/GitHub APIs where credentials and permissions exist.
+- Support issue/task linking, protected branch policy, merge checks, release notes, and rollback/revert workflows.
+- Keep local project Git state and remote GitHub state distinguishable; report synchronization conflicts honestly.
+- Never overwrite user work silently. Show diffs and require approval for destructive or protected operations.
+- Do not claim to be a GitHub replacement for hosted collaboration features that are not implemented; the built-in repository is a project source-control workspace with optional GitHub synchronization.
+
+### Maintenance and repair lifecycle
+
+- Provide scheduled/on-demand health checks for dependencies, tests, security findings, build status, and runtime errors.
+- Classify issues by severity, evidence, likely root cause, affected files, and confidence.
+- Offer a repair plan with minimal diffs and explain risk; apply only within the user's permissions and approval policy.
+- After a repair, rerun the failing test, relevant regression tests, and full release gate before marking it fixed.
+- Track issue recurrence and maintenance history. A repair is not complete because code changed; it is complete only when verification evidence supports the result.
+
+### Accounting and business-system engineering
+
+Add a specialist workflow for accounting and business applications:
+
+- Research user requirements, relevant official regulations/standards where applicable, accounting references, chart-of-accounts patterns, and domain-specific workflows using web search and trusted documentation.
+- Present source links, publication/version dates when available, jurisdiction assumptions, and a distinction between verified requirements and proposed design choices.
+- Ask for jurisdiction, currency, tax treatment, accounting basis, business type, and operational policies when those materially affect correctness. Never invent legal or tax requirements.
+- Generate configurable chart-of-accounts proposals, account mapping, journal-entry workflows, subledgers, invoices, receipts, inventory/costing flows, reconciliation, financial statements, permissions, audit trails, and period closing as required by the brief.
+- Validate accounting invariants: debits equal credits per posted journal; posted entries are immutable except through traceable reversals; subledger totals reconcile to control accounts; opening balances and carry-forward reconcile; document numbers are unique; closed periods reject unauthorized postings.
+- Include scenario-based tests for cash, credit, partial payment, returns, damaged goods, refunds, debt carry-forward, supplier/customer balances, and reports when those modules are in scope.
+- Provide demo fixtures only in an explicitly labeled isolated test database. Production workspaces start empty and must not contain fake financial data.
+
+### Research and speed
+
+- Use a research planner to break broad questions into focused searches, prioritize primary sources and official documentation, compare relevant approaches, and return source-backed findings.
+- Cache source metadata and dependency artifacts with freshness controls; do not reuse stale legal, pricing, API, or version information as current.
+- Parallelize independent test jobs and research queries where safe; keep dependent steps ordered.
+- Use risk-based test selection during iterative edits, but require the complete configured release gate before producing a release artifact.
+- Show progress based on completed work, not fabricated percentages. Report elapsed time, tests executed, tests skipped, and blockers.
+
+## Proposed subsystem boundaries and delivery order
+
+The product is one coherent workspace, but implementation is divided into independently testable subsystems:
+
+1. **AI providers and router:** multiple cloud/local providers, truthful diagnostics, cost-aware selection.
+2. **Project runtime and test orchestrator:** isolated project environments, test plans, logs, evidence, and report format. This is the foundation for every platform-specific lab.
+3. **Interactive web testing:** browser execution, real user journeys, screenshots, console/network evidence, and regression reruns.
+4. **Android build/device lab:** APK build, emulator install, interaction, crash/log collection, and artifact gate.
+5. **Repository and maintenance:** Git workspace, branch/diff/review flows, health scans, repair approvals, and regression verification.
+6. **Accounting engineering and research:** sourced domain research, configurable accounting design, and invariant-driven test packs.
+7. **Unified workspace UI and release center:** one project view connecting source, tasks, lab results, maintenance, repository, and downloadable verified artifacts.
+
+The first recommended implementation order is providers/router and project runtime/test orchestrator, then web and Android test adapters, then repository/maintenance and accounting packs, with the unified UI exposing only capabilities that have passed their own acceptance tests.
+
+## Expanded acceptance criteria
+
+1. A project cannot be marked tested unless its detected test plan records actual executed commands and results.
+2. Browser tests launch the built application and capture real browser evidence.
+3. Android APK delivery requires a real successful build; emulator-tested status requires installation, launch, and executed UI scenarios on an emulator.
+4. Physical-device validation is labeled separately from emulator validation.
+5. Failed tests remain failed until a repair is made and the failing scenario plus regression checks pass.
+6. Repository operations produce real Git commits/branches/diffs and respect permissions and protected operations.
+7. Accounting outputs include jurisdiction assumptions, cited research, and executable accounting-invariant tests for the implemented scope.
+8. Financial production databases contain no seeded demo transactions or invented customer/supplier records.
+9. Release artifacts include build metadata, test report, environment details, and a cryptographic hash.
+10. Any blocked capability (missing SDK, emulator image, signing key, API key, license, Windows runner, or device) is clearly reported as BLOCKED rather than passed.
