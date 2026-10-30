@@ -47,7 +47,7 @@
 
 ### Plan B — Project runtime and test orchestrator (foundation for all labs)
 
-**Progress:** Initial read-only project detection is implemented and exposed through the authenticated `/api/lab/profile` endpoint and Project Lab screen. It identifies Vite/React, Node/Express, Flutter, Android Gradle, .NET, Python manifests, and unknown projects. This is profile discovery only; isolated command execution, persistent run orchestration, quotas, cancellation, and evidence reports remain pending.
+**Progress:** Read-only project detection is implemented through `/api/lab/profile`; static inspection reports and bounded persistent history are available through `/api/lab/inspect` and `/api/lab/runs`. The Project Lab screen displays actual static checks and explicitly labels build/test execution as `NOT_RUN`. CI run 73 passed the new project detection and lab inspection tests, smoke, production build, and Docker image build. Isolated command execution, quotas, cancellation, and runtime evidence remain pending.
 
 **Proposed files:**
 - Create: `server/lab/types.ts`, `server/lab/project-detect.ts`, `server/lab/runtime.ts`, `server/lab/orchestrator.ts`, `server/lab/evidence.ts`
@@ -63,7 +63,7 @@
 - [x] Test project detection for Vite/React, Node API, Flutter, Android Gradle, .NET, and unknown projects.
 - [ ] Test rejection of path traversal, secret file reads, unapproved network access, command injection, and resource-limit violations.
 - [ ] Test timeout, cancellation, failed cleanup, and process termination.
-- [ ] Implement isolated execution and persistent lab evidence; do not reuse the production server's unrestricted process.
+- [ ] Implement isolated execution and persistent lab evidence; do not reuse the production server's unrestricted process. (Static inspection history is implemented; execution evidence remains pending.)
 - [ ] Add authenticated/RBAC-protected APIs for plan, run, cancel, and retrieve report.
 - [ ] Verify test statuses distinguish PASS, FAIL, BLOCKED, NOT RUN, and NEEDS HUMAN INPUT.
 - [ ] Run existing security/auth/sandbox tests plus new lab tests.
