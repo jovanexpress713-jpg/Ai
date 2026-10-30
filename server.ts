@@ -3,45 +3,24 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import {
-  getDb,
-  saveDb,
-  checkPermission,
-  addMessageToConversation,
-  updateAgentTask,
-  recordAuditLog,
-  TerminalEntry,
-} from './server/db.ts';
-import {
-  getWorkspaceFileTree,
-  readWorkspaceFile,
-  writeWorkspaceFile,
-  createWorkspaceItem,
-  deleteWorkspaceItem,
-  renameWorkspaceItem,
-  undoFileChange,
-  computeUnifiedDiff,
-} from './server/workspace-fs.ts';
-import {
-  testGeminiConnection,
-  runAutonomousCycle,
-  applyTaskChanges,
-  rejectTaskChanges,
-} from './server/agent.ts';
-import { login, logout, session, requireAuth, getAuthenticatedUser, updateSessionRole } from './server/auth.ts';
+import { checkPermission } from './server/db.ts';
+import { getWorkspaceFileTree, readWorkspaceFile } from './server/workspace-fs.ts';
+import { testGeminiConnection, runAutonomousCycle, applyTaskChanges, rejectTaskChanges } from './server/agent.ts';
+import { login, logout, session, requireAuth, getAuthenticatedUser } from './server/auth.ts';
 import { isProductionAuthConfigured } from './server/auth-policy.ts';
 import { registerWorkspaceAndIntegrationRoutes } from './server/legacy-routes.ts';
+import { registerTerminalRoute } from './server/terminal-route.ts';
 import { securityHeaders, sameOriginForStateChange } from './server/security.ts';
 import { deploymentStatus, triggerDeployment } from './server/deployment.ts';
 
+type PermissionAction = Parameters<typeof checkPermission>[1];
+
 const ROLE_ACTIONS = {
   GEMINI_TEST: 'MANAGE_SETTINGS' as const,
-  GITHUB: 'MANAGE_GITHUB' as const,
   REJECT_TASK: 'APPLY_CHANGES' as const,
 };
 
 dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isProd = process.env.NODE_ENV === 'production';
@@ -59,7 +38,7 @@ app.post('/api/auth/logout', logout);
 app.get('/api/auth/session', session);
 app.use('/api', sameOriginForStateChange, requireAuth);
 
-function requirePermission(res: Response, action: Parameters<typeof checkPermission>[1]): boolean {
+function requirePermission(res: Response, action: PermissionAction): boolean {
   const user = getAuthenticatedUser(res.req);
   const perm = checkPermission(user?.role || 'Viewer', action);
   if (!perm.allowed) {
@@ -72,18 +51,22 @@ function requirePermission(res: Response, action: Parameters<typeof checkPermiss
 app.get('/api/health', async (_req: Request, res: Response) => {
   const geminiKey = process.env.GEMINI_API_KEY;
   const githubToken = process.env.GITHUB_TOKEN;
-  const sandboxMode = process.env.FORGEX_SANDBOX_MODE || (process.env.NODE_ENV === 'production' ? 'bwrap' : 'workspace');
+  const sandboxMode = process.env.FORGEX_SANDBOX_MODE || (isProd ? 'bwrap' : 'workspace');
   const hasSandbox = sandboxMode === 'workspace' || (sandboxMode === 'bwrap' && fs.existsSync('/usr/bin/bwrap'));
-  const healthData = {
-    gemini: { status: geminiKey && geminiKey.trim() !== '' && geminiKey !== 'MY_GEMINI_API_KEY' ? 'connected' : 'not_configured', model: 'gemini-3.8-flash', reason: geminiKey ? undefined : 'GEMINI_API_KEY environment variable is not configured.' },
-    github: { status: githubToken && githubToken.trim() !== '' ? 'connected' : 'not_configured', reason: githubToken ? undefined : 'GITHUB_TOKEN environment variable is not configured.' },
-    database: { status: 'connected', engine: 'JSON-Persistent-Store', path: 'data/forgex_db.json' },
-    executionEnv: { status: 'connected', nodeVersion: process.version, platform: process.platform },
-    sandbox: { status: hasSandbox ? 'connected' : 'not_configured', mode: sandboxMode, reason: hasSandbox ? undefined : 'Isolated execution sandbox is not installed/configured.' },
-    preview: { status: 'connected', port: PORT, url: `http://localhost:${PORT}` },
-    deployment: (() => { const status = deploymentStatus(); return { status: status.configured ? 'connected' : 'not_configured', provider: status.provider, githubActions: status.githubActions, vercelHook: status.vercelHook, reason: status.configured ? undefined : 'No deployment provider is configured.' }; })(),
-  };
-  res.json({ success: true, timestamp: new Date().toISOString(), services: healthData });
+  const deployment = deploymentStatus();
+  res.json({
+    success: true,
+    timestamp: new Date().toISOString(),
+    services: {
+      gemini: { status: geminiKey && geminiKey.trim() !== '' && geminiKey !== 'MY_GEMINI_API_KEY' ? 'connected' : 'not_configured', model: 'gemini-3.8-flash', reason: geminiKey ? undefined : 'GEMINI_API_KEY environment variable is not configured.' },
+      github: { status: githubToken && githubToken.trim() !== '' ? 'connected' : 'not_configured', reason: githubToken ? undefined : 'GITHUB_TOKEN environment variable is not configured.' },
+      database: { status: 'connected', engine: 'JSON-Persistent-Store', path: 'data/forgex_db.json' },
+      executionEnv: { status: 'connected', nodeVersion: process.version, platform: process.platform },
+      sandbox: { status: hasSandbox ? 'connected' : 'not_configured', mode: sandboxMode, reason: hasSandbox ? undefined : 'Isolated execution sandbox is not installed/configured.' },
+      preview: { status: 'connected', port: PORT, url: `http://localhost:${PORT}` },
+      deployment: { status: deployment.configured ? 'connected' : 'not_configured', provider: deployment.provider, githubActions: deployment.githubActions, vercelHook: deployment.vercelHook, reason: deployment.configured ? undefined : 'No deployment provider is configured.' },
+    },
+  });
 });
 
 app.post('/api/gemini/test', async (_req: Request, res: Response) => {
@@ -123,9 +106,7 @@ app.post('/api/agent/cycle', async (req: Request, res: Response) => {
 });
 
 app.post('/api/agent/task/:id/apply', async (req: Request, res: Response) => {
-  const user = getAuthenticatedUser(req);
-  const perm = checkPermission(user?.role || 'Viewer', 'APPLY_CHANGES');
-  if (!perm.allowed) return res.status(403).json({ error: perm.reason });
+  if (!requirePermission(res, 'APPLY_CHANGES')) return;
   try { const task = await applyTaskChanges(req.params.id); res.json({ success: true, task }); }
   catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -151,6 +132,7 @@ app.get('/api/fs/read', (req: Request, res: Response) => {
 });
 
 registerWorkspaceAndIntegrationRoutes(app, requirePermission, getAuthenticatedUser);
+registerTerminalRoute(app, requirePermission, getAuthenticatedUser);
 
 app.post('/api/deploy', async (req: Request, res: Response) => {
   if (!requirePermission(res, 'DEPLOY')) return;
