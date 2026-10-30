@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { getDb, User, UserRole } from './db.ts';
+import { isProductionAuthConfigured, shouldUseDevelopmentFallback } from './auth-policy.ts';
 
 const SESSION_COOKIE = 'forgex_session';
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -67,6 +68,16 @@ function cleanupSessions(): void {
   for (const [token, item] of sessions) if (item.lastSeenAt < cutoff) sessions.delete(token);
 }
 
+function requireConfiguredProductionAuth(res: Response): boolean {
+  if (process.env.NODE_ENV !== 'production') return true;
+  if (isProductionAuthConfigured()) return true;
+  res.status(503).json({
+    success: false,
+    error: 'Production authentication is not configured. Set FORGEX_ADMIN_EMAIL and a FORGEX_ADMIN_PASSWORD of at least 16 characters.',
+  });
+  return false;
+}
+
 export function login(req: Request, res: Response): void {
   const key = clientKey(req);
   if (isRateLimited(key)) {
@@ -74,14 +85,15 @@ export function login(req: Request, res: Response): void {
     return;
   }
 
+  if (!requireConfiguredProductionAuth(res)) return;
+
   const email = String(req.body?.email || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
   const db = getDb();
   const configuredEmail = String(process.env.FORGEX_ADMIN_EMAIL || '').trim().toLowerCase();
   const configuredPassword = process.env.FORGEX_ADMIN_PASSWORD || '';
 
-  if (!configuredEmail || !configuredPassword || configuredPassword.length < 16) {
-    // Development fallback when credentials are not configured
+  if (shouldUseDevelopmentFallback()) {
     clearFailedLogins(key);
     cleanupSessions();
     const user: User = { ...db.currentUser, email: email || db.currentUser.email, role: 'Owner' };
@@ -110,11 +122,11 @@ export function login(req: Request, res: Response): void {
 
 export function session(req: Request, res: Response): void {
   cleanupSessions();
+  if (!requireConfiguredProductionAuth(res)) return;
+
   const token = parseCookies(req)[SESSION_COOKIE];
   if (!token) {
-    // Automatically issue a session for db.currentUser in dev or when unconfigured
-    const configuredPassword = process.env.FORGEX_ADMIN_PASSWORD || '';
-    if (process.env.NODE_ENV !== 'production' || configuredPassword.length < 16) {
+    if (shouldUseDevelopmentFallback()) {
       const db = getDb();
       const user: User = { ...db.currentUser };
       const devToken = newSession(user);
@@ -128,8 +140,7 @@ export function session(req: Request, res: Response): void {
   const active = sessions.get(token);
   if (!active || Date.now() - active.lastSeenAt > SESSION_TTL_MS) {
     sessions.delete(token);
-    const configuredPassword = process.env.FORGEX_ADMIN_PASSWORD || '';
-    if (process.env.NODE_ENV !== 'production' || configuredPassword.length < 16) {
+    if (shouldUseDevelopmentFallback()) {
       const db = getDb();
       const user: User = { ...db.currentUser };
       const devToken = newSession(user);
@@ -146,10 +157,14 @@ export function session(req: Request, res: Response): void {
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   cleanupSessions();
+  if (process.env.NODE_ENV === 'production' && !isProductionAuthConfigured()) {
+    res.status(503).json({ success: false, error: 'Production authentication is not configured.' });
+    return;
+  }
+
   const token = parseCookies(req)[SESSION_COOKIE];
   if (!token) {
-    const configuredPassword = process.env.FORGEX_ADMIN_PASSWORD || '';
-    if (process.env.NODE_ENV !== 'production' || configuredPassword.length < 16) {
+    if (shouldUseDevelopmentFallback()) {
       const db = getDb();
       (req as Request & { forgexUser?: User }).forgexUser = { ...db.currentUser };
       return next();
@@ -160,8 +175,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   const active = sessions.get(token);
   if (!active || Date.now() - active.lastSeenAt > SESSION_TTL_MS) {
     sessions.delete(token);
-    const configuredPassword = process.env.FORGEX_ADMIN_PASSWORD || '';
-    if (process.env.NODE_ENV !== 'production' || configuredPassword.length < 16) {
+    if (shouldUseDevelopmentFallback()) {
       const db = getDb();
       (req as Request & { forgexUser?: User }).forgexUser = { ...db.currentUser };
       return next();
